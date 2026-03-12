@@ -1,12 +1,12 @@
 # SuperClaw Pure — Análise Competitiva Baseada no Código Real
 
-**Data:** 2026-03-12 | **Commit:** `a222eb5` | **Linhas de código:** 33.510 (16K server + 17K frontend)
+**Data:** 2026-03-12 | **Commit:** `42db0cd` | **Linhas de código:** ~34K (16K server + 17K frontend)
 
 ---
 
 ## 1. O Que Existe de Verdade (auditado no código)
 
-### Server (92 arquivos TS, 196 endpoints API, 30 tabelas DB)
+### Server (94 arquivos TS, ~100 rotas HTTP, 24 tabelas DB ativas)
 
 | Módulo | Status | Arquivos | Detalhe |
 |--------|--------|----------|---------|
@@ -196,7 +196,7 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 - ✅ Único com squad multi-agent + protocol enforcement (ARCHER/NEXUS/AGECON)
 - ✅ Único web SPA com setup wizard (não CLI, não Electron)
 - ✅ Único com public chat sharing + agent invite system
-- ✅ 196 endpoints reais (não phantom), 30 tabelas, 15 tools, 63 componentes
+- ✅ ~100 rotas HTTP reais, 24 tabelas ativas, 15 tools, 63 componentes
 - ✅ Motor nativo streaming testado (boot test + GPT-4o-mini)
 
 **Gaps a priorizar:** smart routing (resolve token burn), memory graph (resolve amnesia), loop detection (resolve repetition)
@@ -239,7 +239,7 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 | **V7** | 🟡 **Média** | **Rate limiter in-memory** | Perde estado em restart; não funciona com múltiplas instâncias | Aceitável para single-server v1, migrar para Redis em v2 |
 | **V8** | 🟢 **Baixa** | **Dev fallback no auth** | Em `NODE_ENV !== 'production'`, retorna primeiro user sem API key | Aceitável — já gated por `NODE_ENV` |
 | **V9** | 🟢 **Baixa** | **Sem XSS sanitization explícita** | ReactMarkdown faz sanitize parcial, mas sem DOMPurify | Adicionar DOMPurify no MarkdownRenderer |
-| **V10** | 🟢 **Baixa** | **File upload sem size limit** | `files.ts` não configura `maxFileSize` no multipart | Configurar limit no Fastify multipart |
+| **V10** | 🟢 **Baixa** | **File upload limit exists but low** | `files.ts` multipart configured with 25MB limit — sufficient for docs/images, may be low for large datasets | Configurável via env var |
 
 ### 8.3 Comparação de Segurança vs Concorrentes
 
@@ -279,8 +279,64 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 
 ---
 
-## 9. Peer Review — Solicitação ao Adler 🦊
+## 9. Peer Review — Adler 🦊 (Tech Lead / Dev)
 
-> **Escopo:** Full QA da análise competitiva (seções 1-8), validação técnica das claims, e identificação de blind spots.
+> **Scope:** Full QA review. Brutally honest. | **Commit reviewed:** `a222eb5` → `42db0cd`
 
-**Pedido enviado via squad channel. Resposta abaixo quando recebida.**
+### 9.1 Validação dos Números
+
+| Claim Original | Verificação | Veredicto |
+|---------------|-------------|-----------|
+| 196 endpoints | grep handler declarations = 196, distinct HTTP routes ~100-120 | ⚠️ **Corrigido**: "~100 rotas HTTP" |
+| 30 tabelas | 24 ativas + 6 comentadas no schema | ⚠️ **Corrigido**: "24 tabelas ativas" |
+| 15 tools | `ls engine/tools/*.ts` (excl. index/types) = 15 | ✅ Correto |
+| 63 componentes | `find components -name '*.tsx'` = 63 | ✅ Correto |
+| 33.510 linhas | server 16.497 + web 17.467 = 33.964 | ✅ ~Correto |
+| File upload sem size limit | Na verdade TEM: 25MB (multipart config) | ⚠️ **Corrigido** |
+
+### 9.2 Blind Spots Identificados
+
+| # | Blind Spot | Severidade | Resposta |
+|---|-----------|-----------|----------|
+| 1 | **Zero testes automatizados** — CoWork-OS tem 3200+ | 🔴 Alto | Backlog: Sprint 62+ (test framework setup) |
+| 2 | **SQLite = single server only** | 🟡 Médio | Target = personal/small team. PostgreSQL no roadmap v2. SQLite handles 100+ concurrent reads fine. |
+| 3 | **Deploy story vago** | 🟡 Médio | Self-hosted via `npx superclaw`. Docker image planned. DeploysTab currently skeleton. |
+| 4 | **Sem observabilidade** | 🟡 Médio | Pino logger exists, OpenTelemetry no roadmap. Audit trail partial. |
+| 5 | **Sem benchmarks de performance** | 🟡 Médio | Node.js ~100-200MB vs PicoClaw <10MB. First-token latency not measured yet. |
+| 6 | **OpenClaw tratado como strawman** | 🟢 Baixo | Corrigido na escrita — OpenClaw's CLI é excelente para devs. Nossa vantagem é web UX, não substituir CLI. |
+
+### 9.3 Vieses Corrigidos
+
+- OpenClaw CLI = excelente para desenvolvedores (145K stars por razão). SuperClaw complementa com web UX.
+- "JSON plaintext" não é segurança ruim se o host está protegido. Vault encryption é diferenciador para multi-user/cloud deploy.
+- SQLite não é fraqueza — é architectural choice correto para o target (personal assistant).
+
+### 9.4 Sprint 59 Fixes (implementados DURANTE o review)
+
+| Fix | Status | Commit |
+|-----|--------|--------|
+| V1: Workspace sandbox em 6 tools | ✅ `a772e00` | config/security.ts + validateToolPath() |
+| V2: Read/Write path validation | ✅ `a772e00` | sandbox mode: read vs write restrictions |
+| V3: Auth middleware global | ✅ `a772e00` | Production: x-api-key required on all non-public routes |
+| V4: 25 blocked patterns (was 6) | ✅ `a772e00` | credential exfil, escalation, mining patterns |
+| V5: Security headers | ✅ `a772e00` | CSP, X-Frame-Options, X-Content-Type-Options, etc. |
+| V6: SSE connection limits | ✅ `a772e00` | 10/IP, 100 total |
+| Loop detection | ✅ `42db0cd` | tool call loops + response similarity |
+| Smart 3-tier routing | ✅ `42db0cd` | cheap/standard/premium auto-classification |
+| Circuit breaker | ✅ `42db0cd` | 3 consecutive failures → auto-disable |
+
+### 9.5 Security Score Updated
+
+| Aspecto | Antes (a222eb5) | Depois (42db0cd) |
+|---------|----------------|-----------------|
+| Criptografia | 9/10 | 9/10 |
+| Autenticação | 4/10 | **7/10** |
+| Autorização | 5/10 | **7/10** |
+| Input validation | 5/10 | **7/10** |
+| Tool sandboxing | 3/10 | **7/10** |
+| Network security | 4/10 | **7/10** |
+| **TOTAL** | **5.0/10** | **7.3/10** |
+
+### 9.6 Veredicto do Adler
+
+> "O doc é razoavelmente honesto. As comparações são fair com as correções. Os gaps mais graves são a falta de test suite (competitivamente, isso é vulnerabilidade #1 vs CoWork-OS) e a falta de observabilidade para production use. O security hardening do Sprint 59 resolveu a maioria das vulnerabilidades identificadas. O produto é funcional e tem differentiadores reais (squad+protocols, web-first, setup wizard). Recomendo: priorizar test suite e observabilidade antes de v1.0 launch."

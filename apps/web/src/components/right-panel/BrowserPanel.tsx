@@ -218,7 +218,7 @@ function BrowserPanel() {
               Navigate to any URL and the agent will capture a screenshot
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, justifyContent: 'center' }}>
-              {['https://github.com', 'https://docs.openclaw.ai', 'https://google.com'].map(u => (
+              {['https://github.com', 'https://google.com', 'https://wikipedia.org'].map(u => (
                 <button key={u} onClick={() => { setInputUrl(u); navigate(u); }} style={{
                   padding: '4px 10px', borderRadius: 6,
                   background: 'var(--surface-hover)', border: '1px solid var(--border)',

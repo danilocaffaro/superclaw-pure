@@ -11,21 +11,23 @@ import { ErrorBoundary } from './ErrorBoundary';
 
 // ─── Agent colors ───────────────────────────────────────────────────────────────
 
-const AGENT_COLORS: Record<string, string> = {
-  main: 'var(--coral)',
-  adler: '#4A90D9',
-  zara: '#9B59B6',
-  scout: '#27AE60',
-  nr: '#E67E22',
-  cris: '#E91E8F',
-  bella: '#E91E8F',
-  forge: '#3498DB',
-  blitz: '#F39C12',
-  pixel: '#1ABC9C',
-  hook: '#8E44AD',
-  funnel: '#2980B9',
-  radar: '#D35400',
-};
+/** Palette for dynamically-assigned agent colors */
+const COLOR_PALETTE = [
+  '#4A90D9', '#9B59B6', '#27AE60', '#E67E22', '#E91E8F',
+  '#3498DB', '#F39C12', '#1ABC9C', '#8E44AD', '#2980B9',
+  '#D35400', '#E74C3C', '#16A085', '#C0392B', '#2ECC71',
+];
+
+/** Derive a stable color from agent id/name */
+function agentColor(agentId: string): string {
+  if (agentId === 'main') return 'var(--coral)';
+  let hash = 0;
+  for (let i = 0; i < agentId.length; i++) {
+    hash = ((hash << 5) - hash) + agentId.charCodeAt(i);
+    hash |= 0;
+  }
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+}
 
 const AGENT_EMOJI: Record<string, string> = {
   // No special emoji — use first letter of agent name
@@ -71,7 +73,7 @@ function buildContactList(
     const session = sessionByAgent.get(agent.id);
     const name = cleanAgentName(agent.id, agent.name || '');
     const avatarText = AGENT_EMOJI[agent.id] ?? name.charAt(0).toUpperCase();
-    const avatarColor = AGENT_COLORS[agent.id] ?? '#607D8B';
+    const avatarColor = agentColor(agent.id);
 
     return {
       agentId: agent.id,
@@ -342,7 +344,7 @@ function MobileChatView() {
     : (AGENT_EMOJI[agentId] ?? agentName.charAt(0).toUpperCase());
   const avatarColor = isSquad
     ? 'linear-gradient(135deg, var(--coral), #9B59B6)'
-    : (AGENT_COLORS[agentId] ?? 'var(--coral)');
+    : (agentColor(agentId));
   const subtitle = isSquad
     ? `${(squad?.agentIds ?? []).length} agents · ${squad?.routingStrategy ?? 'sequential'}`
     : 'Online';

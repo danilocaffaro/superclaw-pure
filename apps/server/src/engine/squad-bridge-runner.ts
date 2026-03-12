@@ -55,7 +55,6 @@ function serializeSSE(event: SSEEvent): string {
 
 function cleanName(id: string, rawName: string): string {
   if (!rawName || rawName === id) return id.charAt(0).toUpperCase() + id.slice(1);
-  if (rawName.toLowerCase().startsWith('@lice')) return 'Alice';
   return rawName;
 }
 

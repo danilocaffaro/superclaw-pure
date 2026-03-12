@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { homedir } from 'os';
 import { PROVIDER_BASE_URLS } from '../config/defaults.js';
 
 // ============================================================
@@ -214,8 +215,8 @@ export class ProviderRepository {
       try {
         const fs = require('fs');
         const path = require('path');
-        const home = process.env.HOME || '/Users/AI';
-        const tokenPath = path.join(home, '.openclaw', 'credentials', 'github-copilot.token.json');
+        const home = process.env.HOME || homedir();
+        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
         if (fs.existsSync(tokenPath)) {
           const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
           status = data?.token ? 'connected' : 'not_configured';

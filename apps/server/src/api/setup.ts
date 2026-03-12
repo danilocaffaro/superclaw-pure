@@ -3,6 +3,7 @@ import type { ProviderRepository, ProviderConfig } from '../db/providers.js';
 import { AgentRepository } from '../db/agents.js';
 import { ProviderRepository as ProvRepo } from '../db/providers.js';
 import { initDatabase } from '../db/index.js';
+import { homedir } from 'os';
 import { streamChat } from '../engine/chat-engine.js';
 import { resolveProviderBaseUrl, resolveProviderType, PROVIDER_BASE_URLS } from '../config/defaults.js';
 
@@ -152,8 +153,8 @@ async function testProviderConnection(
       try {
         const fs = await import('fs');
         const path = await import('path');
-        const home = process.env.HOME || '/Users/AI';
-        const tokenPath = path.join(home, '.openclaw', 'credentials', 'github-copilot.token.json');
+        const home = process.env.HOME || homedir();
+        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
 
         if (!fs.existsSync(tokenPath)) {
           return { success: false, error: 'GitHub Copilot token not found. Make sure you have GitHub CLI (gh) authenticated or OpenClaw with Copilot configured.' };
@@ -339,8 +340,8 @@ export function registerSetupRoutes(
       try {
         const fs = await import('fs');
         const path = await import('path');
-        const home = process.env.HOME || '/Users/AI';
-        const tokenPath = path.join(home, '.openclaw', 'credentials', 'github-copilot.token.json');
+        const home = process.env.HOME || homedir();
+        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
         const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8')) as { token?: string };
         apiKey = data.token || '';
       } catch { /* no token file */ }

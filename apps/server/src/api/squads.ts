@@ -98,7 +98,7 @@ export function registerSquadRoutes(app: FastifyInstance, squads: SquadRepositor
     }>('/squads/:id/members', async (req, reply) => {
       const squad = squads.getById(req.params.id);
       if (!squad) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Squad not found' } });
-      const { agentId, role = 'member', addedBy = 'danilo' } = req.body;
+      const { agentId, role = 'member', addedBy = 'owner' } = req.body;
       if (!agentId) return reply.status(400).send({ error: { code: 'VALIDATION', message: 'agentId is required' } });
 
       const member = members.add(req.params.id, agentId, role, addedBy);
@@ -120,7 +120,7 @@ export function registerSquadRoutes(app: FastifyInstance, squads: SquadRepositor
       const squad = squads.getById(req.params.id);
       if (!squad) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Squad not found' } });
       const { agentId } = req.params;
-      const removedBy = req.query.removedBy ?? 'danilo';
+      const removedBy = req.query.removedBy ?? 'owner';
 
       const ok = members.remove(req.params.id, agentId, removedBy);
       if (!ok) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Member not found' } });
@@ -137,7 +137,7 @@ export function registerSquadRoutes(app: FastifyInstance, squads: SquadRepositor
       Params: { id: string; agentId: string };
       Body: { role: 'owner' | 'admin' | 'member'; actor?: string };
     }>('/squads/:id/members/:agentId', async (req, reply) => {
-      const { role, actor = 'danilo' } = req.body;
+      const { role, actor = 'owner' } = req.body;
       if (!role) return reply.status(400).send({ error: { code: 'VALIDATION', message: 'role is required' } });
       const member = members.updateRole(req.params.id, req.params.agentId, role, actor);
       if (!member) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Member not found' } });

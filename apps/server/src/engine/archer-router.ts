@@ -46,17 +46,12 @@ export interface TagDetection {
 /** Tokens that mean "everyone responds" */
 const ALL_TOKENS = new Set(['all', 'todos', 'team', 'everyone']);
 
-/** Known agent name aliases (lowercase → canonical id) */
+/** Known agent name aliases (lowercase → canonical id).
+ *  This is a **seed** for static resolution. At runtime, agents are
+ *  resolved from the DB via `buildAliasMap()`.
+ */
 const NAME_ALIASES: Record<string, string> = {
-  'alice': 'main',
-  '@lice': 'main',
-  'adler': 'adler',
-  'scout': 'scout',
-  'nr': 'nr',
-  'night ranger': 'nr',
-  'nightranger': 'nr',
-  'sherlock': 'sherlock',
-  'zara': 'zara',
+  // Intentionally empty — populated at runtime from DB agents
 };
 
 /** NEXUS v3 / ARCHER v2 status tags regex */

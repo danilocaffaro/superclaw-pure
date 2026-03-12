@@ -2,15 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": "src",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "skipLibCheck": true,
-    "paths": {
-      "@superclaw/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "skipLibCheck": true
   },
-  "include": [
-    "src",
-    "../../packages/shared/src"
-  ]
+  "include": ["src"]
 }

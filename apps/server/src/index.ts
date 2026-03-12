@@ -59,7 +59,7 @@ import { WorkflowEngine, seedBuiltinWorkflows } from './engine/workflow-engine.j
 import { getMessageBus } from './engine/message-bus.js';
 import { logger } from './lib/logger.js';
 
-const PORT = parseInt(process.env.SUPERCLAW_PORT ?? '4070', 10);
+const PORT = parseInt(process.env.PORT ?? process.env.SUPERCLAW_PORT ?? '4070', 10);
 const HOST = process.env.SUPERCLAW_HOST ?? '0.0.0.0';
 const VERSION = '0.1.0';
 

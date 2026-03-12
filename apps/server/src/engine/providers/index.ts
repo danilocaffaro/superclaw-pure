@@ -88,7 +88,10 @@ export class ProviderRouter {
 
     for (const providerId of fallbackChain) {
       const provConfig = providerRepo.getUnmasked(providerId);
-      if (!provConfig?.rawApiKey) continue;
+      if (!provConfig) continue;
+      // Ollama and local providers don't need API keys
+      const needsApiKey = !['ollama', 'local'].includes(provConfig.type ?? '');
+      if (needsApiKey && !provConfig.rawApiKey) continue;
 
       const firstModel = provConfig.models[0];
       const modelId = options.model ?? (typeof firstModel === 'object' ? firstModel.id : firstModel) ?? 'gpt-4o';

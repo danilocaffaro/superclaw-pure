@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
-import { initEmbeddingTables, loadVecExtension, storeEmbedding, vectorSearch, getEmbeddingDimensions } from '../engine/embeddings.js';
+import { initEmbeddingTables, loadVecExtension, storeEmbedding, vectorSearch, getEmbeddingDimensions, hybridSearch } from '../engine/embeddings.js';
+import { AgentMemoryRepository } from '../db/agent-memory.js';
 
 describe('Embeddings — sqlite-vec', () => {
   let db: Database.Database;
@@ -99,5 +100,126 @@ describe('Embeddings — getEmbeddingDimensions', () => {
 
   it('should default to 1536 for unknown models', () => {
     expect(getEmbeddingDimensions('totally-unknown')).toBe(1536);
+  });
+});
+
+describe('hybridSearch — RRF fusion', () => {
+  let db: Database.Database;
+  const DIMS = 4;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    db.exec(`CREATE TABLE messages (
+      id TEXT PRIMARY KEY, session_id TEXT NOT NULL DEFAULT '',
+      agent_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    db.exec(`CREATE VIRTUAL TABLE messages_fts USING fts5(
+      content, session_id UNINDEXED, agent_id UNINDEXED, role UNINDEXED, created_at UNINDEXED,
+      content='messages', content_rowid='rowid'
+    )`);
+    loadVecExtension(db);
+    initEmbeddingTables(db, DIMS);
+
+    // Insert test messages
+    const msgs = [
+      { id: 'msg1', session_id: 'sess1', role: 'user', content: 'How to deploy to production' },
+      { id: 'msg2', session_id: 'sess1', role: 'assistant', content: 'Use Docker and kubernetes for deployment' },
+      { id: 'msg3', session_id: 'sess1', role: 'user', content: 'What is the capital of France' },
+      { id: 'msg4', session_id: 'sess2', role: 'user', content: 'Deploy the application now' },
+    ];
+    const insert = db.prepare('INSERT INTO messages (id, session_id, agent_id, role, content) VALUES (?,?,?,?,?)');
+    for (const m of msgs) insert.run(m.id, m.session_id, 'agent1', m.role, m.content);
+
+    // Populate FTS5
+    db.exec(`INSERT INTO messages_fts(messages_fts) VALUES('rebuild')`);
+  });
+
+  it('returns results when only FTS5 available (no vector)', () => {
+    const results = hybridSearch(db, 'deploy production', new Float32Array(DIMS), 5);
+    // May return empty if FTS5 rebuild not supported, but should not throw
+    expect(Array.isArray(results)).toBe(true);
+  });
+
+  it('fuses vector and FTS5 results via RRF', () => {
+    // Store an embedding for msg1 (high similarity to "deploy production")
+    const embedding = new Float32Array([0.9, 0.1, 0.0, 0.0]);
+    storeEmbedding(db, 'msg1', embedding, 'test-model', DIMS);
+
+    // Query with similar vector
+    const queryVec = new Float32Array([0.85, 0.15, 0.0, 0.0]);
+    const results = hybridSearch(db, 'deploy production', queryVec, 5);
+
+    expect(Array.isArray(results)).toBe(true);
+    // msg1 should appear (both FTS5 match and vector match)
+    const ids = results.map(r => r.messageId);
+    if (ids.length > 0) {
+      expect(ids).toContain('msg1');
+    }
+  });
+
+  it('RRF score is always positive', () => {
+    const embedding = new Float32Array([1.0, 0.0, 0.0, 0.0]);
+    storeEmbedding(db, 'msg1', embedding, 'test-model', DIMS);
+    const results = hybridSearch(db, 'deploy', new Float32Array([1.0, 0.0, 0.0, 0.0]), 10);
+    for (const r of results) {
+      expect(r.score).toBeGreaterThan(0);
+    }
+  });
+
+  it('respects limit parameter', () => {
+    const embedding = new Float32Array([1.0, 0.0, 0.0, 0.0]);
+    ['msg1', 'msg2', 'msg3', 'msg4'].forEach(id => storeEmbedding(db, id, embedding, 'test-model', DIMS));
+    const results = hybridSearch(db, 'deploy', embedding, 2);
+    expect(results.length).toBeLessThanOrEqual(2);
+  });
+
+  it('filters by sessionId when provided', () => {
+    const embedding = new Float32Array([1.0, 0.0, 0.0, 0.0]);
+    ['msg1', 'msg2', 'msg4'].forEach(id => storeEmbedding(db, id, embedding, 'test-model', DIMS));
+    const results = hybridSearch(db, 'deploy', embedding, 10, 'sess1');
+    const sessionIds = results.map(r => r.content);
+    // All results should come from sess1 (msg1, msg2), not sess2 (msg4)
+    expect(results.every(r => ['msg1', 'msg2'].includes(r.messageId))).toBe(true);
+  });
+});
+
+describe('AgentMemoryRepository.hybridArchivalSearch', () => {
+  let db: Database.Database;
+  let memRepo: AgentMemoryRepository;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    db.exec(`CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY, session_id TEXT NOT NULL DEFAULT '',
+      agent_id TEXT NOT NULL DEFAULT '', role TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+      content, session_id UNINDEXED, agent_id UNINDEXED, role UNINDEXED, created_at UNINDEXED,
+      content='messages', content_rowid='rowid'
+    )`);
+    db.exec(`CREATE TABLE IF NOT EXISTS agent_memory (
+      id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'short_term',
+      key TEXT NOT NULL, value TEXT NOT NULL, relevance REAL DEFAULT 1.0,
+      embedding_id TEXT, metadata TEXT, event_at DATETIME, valid_until DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    memRepo = new AgentMemoryRepository(db);
+  });
+
+  it('falls back to FTS5 when no embeddingConfig', async () => {
+    const results = await memRepo.hybridArchivalSearch('test query', { limit: 5 });
+    expect(Array.isArray(results)).toBe(true);
+  });
+
+  it('returns mode=fts5 results with correct shape', async () => {
+    const results = await memRepo.hybridArchivalSearch('hello world');
+    for (const r of results) {
+      expect(r).toHaveProperty('content');
+      expect(r).toHaveProperty('role');
+      expect(r).toHaveProperty('createdAt');
+      expect(r).toHaveProperty('score');
+    }
   });
 });

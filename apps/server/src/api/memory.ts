@@ -462,4 +462,56 @@ export async function memoryRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: { code: 'INTERNAL', message: String(err) } });
     }
   });
+
+  // POST /memory/:agentId/hybrid-search — Hybrid FTS5 + vector search (RRF fusion)
+  app.post<{
+    Params: { agentId: string };
+    Body: { query: string; sessionId?: string; limit?: number; embeddingModel?: string };
+  }>('/memory/:agentId/hybrid-search', async (req, reply) => {
+    try {
+      const { query, sessionId, limit = 10, embeddingModel } = req.body ?? {};
+      if (!query?.trim()) {
+        return reply.status(400).send({ error: { code: 'VALIDATION', message: 'query is required' } });
+      }
+
+      const memRepo = new AgentMemoryRepository(db);
+
+      // Try to get embedding config from providers if model specified
+      let embeddingConfig: { baseUrl: string; apiKey: string; model: string } | undefined;
+      if (embeddingModel) {
+        try {
+          const { ProviderRepository } = await import('../db/providers.js');
+          const provRepo = new ProviderRepository(db);
+          const providers = provRepo.list();
+          // Find a provider that supports embeddings (OpenAI-compatible)
+          const openaiProvider = providers.find(p => p.type === 'openai' && p.apiKey);
+          if (openaiProvider) {
+            embeddingConfig = {
+              baseUrl: openaiProvider.baseUrl ?? 'https://api.openai.com/v1',
+              apiKey: openaiProvider.apiKey ?? '',
+              model: embeddingModel,
+            };
+          }
+        } catch { /* no embedding provider available */ }
+      }
+
+      const results = await memRepo.hybridArchivalSearch(query, {
+        sessionId,
+        limit,
+        embeddingConfig,
+      });
+
+      return {
+        data: {
+          query,
+          mode: embeddingConfig ? 'hybrid' : 'fts5',
+          results,
+          count: results.length,
+        },
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.status(500).send({ error: { code: 'INTERNAL', message: String(err) } });
+    }
+  });
 }

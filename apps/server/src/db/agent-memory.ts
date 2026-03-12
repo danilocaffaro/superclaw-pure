@@ -832,4 +832,44 @@ export class AgentMemoryRepository {
       return this.getContextString(agentId);
     }
   }
+
+  /**
+   * Hybrid search: FTS5 + vector similarity fused via RRF.
+   * Falls back to FTS5-only if embeddings are unavailable.
+   * Uses lazy-loaded hybridSearch to avoid circular dependency.
+   */
+  async hybridArchivalSearch(
+    query: string,
+    opts?: { sessionId?: string; limit?: number; embeddingConfig?: { providerId?: string; baseUrl: string; apiKey: string; model: string; dimensions?: number } },
+  ): Promise<Array<{ messageId: string; score: number; content: string; role: string; createdAt: string }>> {
+    const limit = opts?.limit ?? 10;
+
+    // Try hybrid if embedding config provided
+    if (opts?.embeddingConfig) {
+      try {
+        const { generateEmbedding, hybridSearch } = await import('../engine/embeddings.js');
+        const fullConfig = {
+          providerId: opts.embeddingConfig.providerId ?? 'openai',
+          baseUrl: opts.embeddingConfig.baseUrl,
+          apiKey: opts.embeddingConfig.apiKey,
+          model: opts.embeddingConfig.model,
+          dimensions: opts.embeddingConfig.dimensions ?? 1536,
+        };
+        const result = await generateEmbedding(query, fullConfig);
+        return hybridSearch(this.db, query, result.embedding, limit, opts.sessionId);
+      } catch {
+        // Fall through to FTS5 fallback
+      }
+    }
+
+    // FTS5 fallback
+    const ftsResults = this.archivalSearch(query, { sessionId: opts?.sessionId, limit });
+    return ftsResults.map(r => ({
+      messageId: '',
+      score: r.bm25_score,
+      content: r.content,
+      role: r.role,
+      createdAt: r.created_at,
+    }));
+  }
 }

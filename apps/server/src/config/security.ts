@@ -173,6 +173,7 @@ export const PUBLIC_ROUTES: string[] = [
   // Dashboard (read-only, same-origin access)
   '/routing/',
   '/analytics/',
+  '/embeddings/status',
 ];
 
 /**

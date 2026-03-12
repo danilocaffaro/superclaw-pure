@@ -4,6 +4,8 @@
 // Supports: fetch (fallback) + Playwright (full automation)
 // ============================================================
 
+import { logger } from '../lib/logger.js';
+
 import { randomUUID } from 'crypto';
 
 export interface BrowserSession {
@@ -118,7 +120,7 @@ export class BrowserPool {
         }
       } catch (err) {
         // Fallback: session still created, navigate will use fetch
-        console.warn(`[BrowserPool] Playwright page creation failed: ${(err as Error).message}`);
+        logger.warn(`[BrowserPool] Playwright page creation failed: ${(err as Error).message}`);
       }
     }
 

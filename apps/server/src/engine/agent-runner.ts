@@ -147,7 +147,7 @@ export async function* runAgent(
 
   // ── 2.5 Smart context compaction ────────────────────────────────────────────
   try {
-    sessionManager.smartCompact(sessionId, 80_000, agentConfig.id);
+    await sessionManager.smartCompact(sessionId, 80_000, agentConfig.id);
   } catch {
     // Non-fatal — continue with full history if compaction fails
   }

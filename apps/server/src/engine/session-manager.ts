@@ -407,6 +407,7 @@ export class SessionManager {
    * smartCompact — Token-aware compaction with memory preservation.
    *
    * Sprint 66: Upgraded from regex heuristic to structured extraction.
+   * Sprint 71: Added LLM compaction option (tries LLM first, falls back to heuristic).
    * Before deleting old messages:
    *   1. Save working memory (active goals, plan, next actions)
    *   2. Extract facts/decisions/entities via heuristic patterns
@@ -416,7 +417,7 @@ export class SessionManager {
    *
    * The actual deletion + summary insertion happens after preservation.
    */
-  smartCompact(sessionId: string, maxTokens = 80_000, agentId?: string): void {
+  async smartCompact(sessionId: string, maxTokens = 80_000, agentId?: string): Promise<void> {
     if (!this.getSession(sessionId)) return;
     const allMessages = this.getMessages(sessionId, { limit: 100_000 });
     if (allMessages.length === 0) return;
@@ -492,8 +493,39 @@ export class SessionManager {
       logger.warn('[SmartCompact] Working memory save failed: %s', (err as Error).message);
     }
 
-    // ── Step 2: Extract durable facts from old messages ───────────────────────
+    // ── Step 2: Try LLM compaction first, fall back to heuristic ────────────
     const extractedFacts: Array<{ key: string; value: string; type: string }> = [];
+    let llmResult: import('./llm-compactor.js').CompactionResult | null = null;
+    if (agentId && memRepo) {
+      try {
+        const { ProviderRepository } = await import('../db/providers.js');
+        const providers = new ProviderRepository(this.db);
+        const { llmCompact } = await import('./llm-compactor.js');
+        llmResult = await llmCompact(
+          oldMessages.map(m => ({ role: m.role, content: m.content })),
+          providers,
+        );
+        if (llmResult) {
+          for (const fact of llmResult.facts) {
+            memRepo.set(
+              agentId,
+              `${fact.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              fact.value,
+              fact.type as any,
+              0.85,
+              undefined,
+              { source: 'llm_compaction' },
+            );
+            extractedFacts.push(fact);
+          }
+          logger.info('[SmartCompact] LLM compaction: %d facts via %s', llmResult.facts.length, llmResult.model);
+        }
+      } catch (err) {
+        logger.warn('[SmartCompact] LLM compaction failed, using heuristic: %s', (err as Error).message);
+      }
+    }
+
+    // ── Step 2b: Heuristic extraction (supplements LLM or runs standalone) ────
     const codeFiles = new Set<string>();
     const decisions = new Set<string>();
     const topics = new Set<string>();

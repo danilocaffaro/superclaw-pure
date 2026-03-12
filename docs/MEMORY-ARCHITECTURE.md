@@ -554,3 +554,228 @@ What we have → What we need:
 | `memory` tool (basic) | 4 tools (core_*, recall_*, archival_*) | Replace tool class |
 | No archival search | FTS5 search tool | Add tool |
 | Static memory injection | Budget-aware injection | Rewrite `getContextString()` |
+
+---
+
+## 14. Chat History Indexing & Search — Deep Dive
+
+Research: 4 Gemini Search queries focused on indexing frameworks, chunking strategies, retrieval models, and SQLite-specific implementation.
+
+### 14.1 The 3-Tier Retrieval Model
+
+Based on 2025 research consensus, the optimal search architecture for chat history combines 3 tiers:
+
+```
+┌─────────────────────────────────────────────────────┐
+│            QUERY (user question or recall need)       │
+└──────────────────────┬──────────────────────────────┘
+                       │
+        ┌──────────────▼──────────────┐
+        │  TIER 1: BM25 / FTS5        │  ← v1.0
+        │  Keyword-based, fast, exact  │
+        │  Strengths: precision,       │
+        │    identifiers, code snippets│
+        │  sqlite FTS5 + porter + uni  │
+        └──────────────┬──────────────┘
+                       │ candidates (top-50)
+        ┌──────────────▼──────────────┐
+        │  TIER 2: VECTOR / SEMANTIC   │  ← v1.1
+        │  Embedding-based similarity  │
+        │  Strengths: paraphrases,     │
+        │    intent, "what did I mean?"│
+        │  sqlite-vec + embeddings     │
+        └──────────────┬──────────────┘
+                       │ re-ranked (top-10)
+        ┌──────────────▼──────────────┐
+        │  TIER 3: GRAPH TRAVERSAL     │  ← v1.0
+        │  Follow edges in agent_memory│
+        │  Strengths: related facts,   │
+        │    contradictions, context    │
+        │  Our L4 memory graph         │
+        └──────────────┬──────────────┘
+                       │ enriched results
+                       ▼
+              FINAL CONTEXT FOR LLM
+```
+
+**v1.0 ships Tier 1 + Tier 3.** Tier 2 (vector) is a v1.1 addition — the architecture is designed for it to be pluggable.
+
+### 14.2 FTS5 Configuration — Best Practices
+
+Based on SQLite.org docs, sqlite.ai guides, and community expertise:
+
+```sql
+-- OPTIMAL tokenizer config for chat history (multilingual, with stemming)
+CREATE VIRTUAL TABLE messages_fts USING fts5(
+  content,
+  session_id UNINDEXED,     -- filter column, not searchable text
+  agent_id UNINDEXED,       -- filter column
+  role UNINDEXED,           -- filter column
+  created_at UNINDEXED,     -- for recency scoring
+  tokenize='porter unicode61 remove_diacritics 2'
+);
+```
+
+**Why this config:**
+- **`porter`** = stemming wrapper. "running" matches "run", "ran". Critical for recall.
+- **`unicode61`** = base tokenizer. Handles accented chars, Portuguese (ç, ã, é), CJK.
+- **`remove_diacritics 2`** = "café" matches "cafe". Important for Portuguese.
+- **`UNINDEXED` columns** = metadata for filtering WITHOUT polluting the search index. Saves space and prevents false matches on IDs.
+
+**Why NOT trigram:**
+Trigram tokenizer enables substring matching ("ello" inside "hello") — useful for autocomplete, NOT for recall search. It generates 3x more tokens per document, significantly larger index. Trigram is overkill for chat history.
+
+### 14.3 FTS5 Search Patterns for Chat History
+
+```sql
+-- Basic keyword search with BM25 ranking
+SELECT m.id, m.content, m.session_id, m.created_at,
+       rank AS bm25_score
+FROM messages_fts
+WHERE messages_fts MATCH ?
+  AND session_id = ?                -- scope to session (optional)
+ORDER BY rank                        -- BM25 (lower = better match)
+LIMIT 20;
+
+-- Snippet extraction (show matching context, not full message)
+SELECT snippet(messages_fts, 0, '<b>', '</b>', '...', 32) AS context,
+       session_id, created_at
+FROM messages_fts
+WHERE messages_fts MATCH ?
+ORDER BY rank
+LIMIT 10;
+
+-- Recency-boosted BM25 (custom scoring)
+-- Multiply BM25 by a recency decay factor
+SELECT m.id, m.content,
+       rank * (1.0 / (1.0 + (julianday('now') - julianday(created_at)))) AS score
+FROM messages_fts
+WHERE messages_fts MATCH ?
+ORDER BY score
+LIMIT 20;
+
+-- Cross-session search (find info across ALL conversations)
+SELECT m.id, m.content, m.session_id, m.created_at,
+       rank AS bm25_score
+FROM messages_fts
+WHERE messages_fts MATCH ?
+ORDER BY rank
+LIMIT 20;
+
+-- Phrase search (exact sequence)
+SELECT * FROM messages_fts WHERE messages_fts MATCH '"sprint 65 memory"';
+
+-- Boolean operators
+SELECT * FROM messages_fts WHERE messages_fts MATCH 'memory AND compaction NOT regex';
+
+-- Column-specific search (only search content, not metadata)
+SELECT * FROM messages_fts WHERE content MATCH 'eidetic memory';
+```
+
+### 14.4 Chunking Strategy for Messages
+
+Research shows 3 main chunking approaches for conversations:
+
+| Strategy | How | Best For | Our Use? |
+|----------|-----|----------|----------|
+| **Turn-based** | Each message = 1 chunk | Short messages, chat-style | ✅ Primary |
+| **Sliding window** | 5-7 turns with 2-3 turn overlap | Context-heavy, back-and-forth | ✅ For FTS snippets |
+| **Topic-based** | Segment by topic change | Long sessions, multi-topic | ⚠️ v1.1 (needs embeddings) |
+
+**Our approach for v1.0:**
+
+```
+Individual Message Indexing (Turn-Based):
+- Each message is 1 FTS5 row
+- Metadata (session_id, agent_id, role, timestamp) as UNINDEXED columns
+- This is the simplest, most granular approach
+- Works perfectly for keyword recall ("when did we discuss X?")
+
+Sliding Window for Context Retrieval:
+- When FTS5 finds a match, we DON'T just return that message
+- We return the message + N surrounding messages (context window)
+- Implementation: SELECT messages WHERE session_id=? AND created_at 
+  BETWEEN (match_time - 2min) AND (match_time + 2min)
+- This gives the agent CONTEXT around the match, not just the hit
+```
+
+### 14.5 How ChatGPT / Claude / Gemini Do It (Research)
+
+| Product | Chat History Search | Memory Persistence | Method |
+|---------|--------------------|--------------------|--------|
+| **ChatGPT** | Session context window + "Saved Memories" (explicit) + implicit chat history referencing | Cross-session via saved memories; implicit profile learning | Attention weighting + separate persistent store |
+| **Claude** | "Search and reference chats" — active retrieval when prompted | NOT persistent (no user profile building); chat-by-chat | On-demand search, not passive learning |
+| **Gemini** | Can search Google Chat history; RAG over past conversations | Workspace integration; cites sources from past chats | RAG + metadata retrieval + cited context |
+
+**Key insight:** Claude's approach is closest to ours — active search on demand, not passive always-on injection. This validates our "mandatory recall cascade" (search before saying "I don't know") over ChatGPT's implicit memory (which can hallucinate memories).
+
+### 14.6 sqlite-vec Integration Plan (v1.1)
+
+Based on Alex Garcia's docs (alexgarcia.xyz) and community guides:
+
+```sql
+-- Virtual table for vector storage
+CREATE VIRTUAL TABLE message_embeddings USING vec0(
+  message_id TEXT PRIMARY KEY,
+  embedding FLOAT[384]           -- all-MiniLM-L6-v2 = 384 dims
+);
+```
+
+**Embedding model comparison:**
+
+| Model | Dims | Size | Speed | Quality | Cost | Our Choice? |
+|-------|------|------|-------|---------|------|-------------|
+| `text-embedding-3-small` (OpenAI) | 1536 | API only | Fast | ⭐⭐⭐⭐⭐ | $0.02/1M tokens | ✅ v1.1 default |
+| `nomic-embed-text` (local) | 768 | 274MB | Medium | ⭐⭐⭐⭐ | Free | ✅ v1.1 local option |
+| `all-MiniLM-L6-v2` (local) | 384 | 80MB | Fast | ⭐⭐⭐ | Free | ⚠️ Smaller but lighter |
+| ChromaDB default | 384 | embeds in Chroma | Medium | ⭐⭐⭐ | Free | ❌ External dep |
+
+**sqlite-vec vs alternatives:**
+
+| | sqlite-vec | ChromaDB | pgvector |
+|---|---|---|---|
+| **Dependency** | SQLite extension | Separate server | Postgres extension |
+| **Setup** | `npm install sqlite-vec` | Docker + API | Postgres required |
+| **Scale** | 100K-1M vectors | Millions | Millions |
+| **Our use case** | ✅ Perfect (single-file) | ❌ External server | ❌ Postgres required |
+| **Query speed** | ~5ms (100K vectors) | ~10ms | ~3ms |
+
+**sqlite-vec is perfect for our scale.** A personal assistant with 100K messages = 100K vectors. sqlite-vec handles that in ~5ms. No external dependencies.
+
+**Hybrid search pattern (v1.1):**
+```sql
+-- Step 1: FTS5 pre-filter (fast, keyword-based)
+WITH fts_matches AS (
+  SELECT rowid, rank AS fts_score
+  FROM messages_fts
+  WHERE messages_fts MATCH ?
+  LIMIT 50
+),
+-- Step 2: Vector re-rank (semantic similarity)
+vec_scores AS (
+  SELECT message_id, distance
+  FROM message_embeddings
+  WHERE embedding MATCH ?          -- query embedding
+    AND k = 50                     -- top-50 nearest
+)
+-- Step 3: Reciprocal Rank Fusion (RRF)
+SELECT m.id, m.content,
+  (COALESCE(1.0/(60+fts_rank), 0) + COALESCE(1.0/(60+vec_rank), 0)) AS rrf_score
+FROM messages m
+LEFT JOIN fts_matches f ON m.rowid = f.rowid
+LEFT JOIN vec_scores v ON m.id = v.message_id
+WHERE f.rowid IS NOT NULL OR v.message_id IS NOT NULL
+ORDER BY rrf_score DESC
+LIMIT 10;
+```
+
+### 14.7 Revised Implementation Phases (Updated)
+
+| Phase | Sprint | Items | Search Capability |
+|-------|--------|-------|-------------------|
+| **Foundation** | 65 | Unify tables, FTS5, working memory | Keyword search (BM25) |
+| **Smart Compaction** | 66 | LLM extraction, archive, compaction log | + Archival search |
+| **Agent Tools** | 67 | core_memory_*, recall_*, archival_* | + Agent-invoked search |
+| **Background Extract** | 68 | Auto-extract, contradiction detection | + Richer graph data |
+| **Hybrid Search** | v1.1 | sqlite-vec, embeddings, RRF fusion | + Semantic search |
+| **Advanced** | v1.2 | Topic segmentation, temporal queries | + Topic-based recall |

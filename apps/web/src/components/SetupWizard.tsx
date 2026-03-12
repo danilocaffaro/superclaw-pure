@@ -140,7 +140,7 @@ const labelStyle: React.CSSProperties = {
 // ── Step Indicator ────────────────────────────────────────────────────────────
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
-  const labels = ['Welcome', 'Provider', 'Agent', 'Ready'];
+  const labels = ['Welcome', 'Provider', 'Agent', 'Channels', 'Ready'];
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 32 }}>
       {Array.from({ length: total }, (_, i) => {
@@ -265,7 +265,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Step 4 state
+  // Step 4 state (Channels)
+  const [channelExpanded, setChannelExpanded] = useState<string | null>(null);
+  const [channelToken, setChannelToken] = useState('');
+  const [channelSaving, setChannelSaving] = useState(false);
+  const [channelSaved, setChannelSaved] = useState<string | null>(null);
+  const [channelError, setChannelError] = useState('');
+
+  // Step 5 state (Ready)
   const [chatMessage, setChatMessage] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -468,7 +475,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       }}
     >
       <div style={{ width: '100%', maxWidth: 600 }}>
-        <StepIndicator current={step} total={4} />
+        <StepIndicator current={step} total={5} />
 
         {/* ═══════════════════════ Step 1: Welcome ═══════════════════════════ */}
         {step === 1 && (
@@ -870,8 +877,178 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           </div>
         )}
 
-        {/* ═══════════════════════ Step 4: Ready ═════════════════════════════ */}
+        {/* ═══════════════════════ Step 4: Channels (optional) ═════════════ */}
         {step === 4 && (
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4, color: 'var(--text, #e6edf3)' }}>
+              Connect a messaging channel
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-muted, #8b949e)', marginBottom: 20 }}>
+              Chat with your agent from Telegram, Discord, or Slack. This is optional — you can always add channels later in Settings.
+            </p>
+
+            {/* Channel cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {([
+                { id: 'telegram', icon: '✈️', name: 'Telegram', desc: 'Create a bot via @BotFather, paste the token', field: 'Bot Token', placeholder: '123456:ABC-DEF...' },
+                { id: 'discord', icon: '🎮', name: 'Discord', desc: 'Create a webhook in your server channel settings', field: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/...' },
+                { id: 'slack', icon: '💼', name: 'Slack', desc: 'Create an incoming webhook in your Slack workspace', field: 'Webhook URL', placeholder: 'https://hooks.slack.com/services/...' },
+                { id: 'whatsapp', icon: '💬', name: 'WhatsApp', desc: 'Via Twilio or Meta Cloud API (advanced)', field: 'Account SID', placeholder: 'ACxxxxxxxx' },
+              ] as const).map((ch) => {
+                const isExpanded = channelExpanded === ch.id;
+                return (
+                  <div key={ch.id} style={{ ...cardStyle }}>
+                    <button
+                      type="button"
+                      onClick={() => setChannelExpanded(isExpanded ? null : ch.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ fontSize: 24 }}>{ch.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text, #e6edf3)' }}>{ch.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted, #8b949e)' }}>{ch.desc}</div>
+                      </div>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted, #8b949e)', transition: 'transform 200ms', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                    </button>
+
+                    {isExpanded && (
+                      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {ch.id === 'telegram' && (
+                          <>
+                            <label style={labelStyle}>Bot Token</label>
+                            <input
+                              type="password"
+                              placeholder={ch.placeholder}
+                              value={channelToken}
+                              onChange={(e) => setChannelToken(e.target.value)}
+                              style={inputStyle}
+                            />
+                            <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', margin: 0 }}>
+                              💡 Open Telegram → search @BotFather → /newbot → copy the token
+                            </p>
+                          </>
+                        )}
+                        {ch.id === 'discord' && (
+                          <>
+                            <label style={labelStyle}>Webhook URL</label>
+                            <input
+                              type="text"
+                              placeholder={ch.placeholder}
+                              value={channelToken}
+                              onChange={(e) => setChannelToken(e.target.value)}
+                              style={inputStyle}
+                            />
+                            <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', margin: 0 }}>
+                              💡 Server Settings → Integrations → Webhooks → New Webhook → Copy URL
+                            </p>
+                          </>
+                        )}
+                        {ch.id === 'slack' && (
+                          <>
+                            <label style={labelStyle}>Webhook URL</label>
+                            <input
+                              type="text"
+                              placeholder={ch.placeholder}
+                              value={channelToken}
+                              onChange={(e) => setChannelToken(e.target.value)}
+                              style={inputStyle}
+                            />
+                            <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', margin: 0 }}>
+                              💡 api.slack.com → Your Apps → Incoming Webhooks → Add to Slack
+                            </p>
+                          </>
+                        )}
+                        {ch.id === 'whatsapp' && (
+                          <>
+                            <label style={labelStyle}>Account SID (Twilio)</label>
+                            <input
+                              type="password"
+                              placeholder={ch.placeholder}
+                              value={channelToken}
+                              onChange={(e) => setChannelToken(e.target.value)}
+                              style={inputStyle}
+                            />
+                            <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', margin: 0 }}>
+                              💡 Requires a Twilio account with WhatsApp sandbox or Meta Cloud API
+                            </p>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          disabled={!channelToken.trim() || channelSaving}
+                          onClick={() => {
+                            setChannelSaving(true);
+                            setChannelError('');
+                            void (async () => {
+                              try {
+                                let config: Record<string, unknown>;
+                                if (ch.id === 'telegram') config = { type: 'telegram', botToken: channelToken };
+                                else if (ch.id === 'discord') config = { type: 'discord', webhookUrl: channelToken };
+                                else if (ch.id === 'slack') config = { type: 'slack', webhookUrl: channelToken };
+                                else config = { type: 'whatsapp', provider: 'twilio', accountSid: channelToken };
+
+                                const res = await fetch(`${API}/channels`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    name: `${ch.name} Channel`,
+                                    type: ch.id,
+                                    agentId: createdAgent?.id ?? '',
+                                    config,
+                                  }),
+                                });
+                                if (!res.ok) {
+                                  const err = await res.json() as { error?: { message?: string } };
+                                  throw new Error(err.error?.message ?? `Failed (${res.status})`);
+                                }
+                                setChannelSaved(ch.id);
+                                setChannelToken('');
+                              } catch (err) {
+                                setChannelError((err as Error).message);
+                              } finally {
+                                setChannelSaving(false);
+                              }
+                            })();
+                          }}
+                          style={{
+                            ...btnPrimary,
+                            padding: '10px 20px',
+                            opacity: !channelToken.trim() || channelSaving ? 0.4 : 1,
+                          }}
+                        >
+                          {channelSaving ? '⏳ Connecting…' : channelSaved === ch.id ? '✅ Connected!' : `Connect ${ch.name}`}
+                        </button>
+                        {channelError && channelExpanded === ch.id && (
+                          <p style={{ fontSize: 12, color: 'var(--red, #f85149)', margin: 0 }}>{channelError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+              <button type="button" onClick={() => setStep(3)} style={btnSecondary}>
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(5)}
+                style={btnPrimary}
+              >
+                {channelSaved ? 'Next →' : 'Skip for now →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════ Step 5: Ready ═════════════════════════════ */}
+        {step === 5 && (
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4, color: 'var(--text, #e6edf3)' }}>
               You&apos;re All Set!
@@ -955,7 +1132,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-              <button type="button" onClick={() => setStep(3)} style={btnSecondary}>
+              <button type="button" onClick={() => setStep(4)} style={btnSecondary}>
                 ← Back
               </button>
               <button

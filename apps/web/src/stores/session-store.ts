@@ -11,7 +11,7 @@ export interface Session {
   squad_id?: string;
   created_at: string;
   updated_at: string;
-  source?: 'openclaw' | 'superclaw';
+  source?: 'superclaw';
   last_message?: string;
 }
 
@@ -118,7 +118,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const qs = opts?.preview ? '?preview=true' : '';
       const data = await apiFetch<{ data: Session[] } | Session[]>(`/sessions${qs}`);
       const rawSessions = Array.isArray(data) ? data : (data as { data: Session[] }).data ?? [];
-      // Normalize sessions — handle both OpenClaw (sessionKey) and SuperClaw (id) formats
+      // Normalize sessions — normalize session data from API
       const sessions = (rawSessions as unknown as Array<Record<string, unknown>>).map((s) => ({
         id: (s.id ?? s.sessionKey ?? '') as string,
         title: (s.title ?? s.label ?? s.id ?? s.sessionKey ?? 'Untitled') as string,
@@ -129,7 +129,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         squad_id: (s.squad_id ?? '') as string | undefined,
         created_at: (s.created_at ?? s.lastActive ?? new Date().toISOString()) as string,
         updated_at: (s.updated_at ?? s.lastActive ?? new Date().toISOString()) as string,
-        source: (s.source ?? 'superclaw') as 'openclaw' | 'superclaw',
+        source: 'superclaw' as const,
         last_message: (s.last_message ?? '') as string,
       })) as Session[];
       set({ sessions });

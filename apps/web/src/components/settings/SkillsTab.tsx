@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { SectionTitle } from './shared';
 
-// ─── Skills Tab (B072) — real skills from OpenClaw Bridge ────────────────────
+// ─── Skills Tab (B072) — curated skill library ────────────────────
 
 interface Skill {
   name: string;

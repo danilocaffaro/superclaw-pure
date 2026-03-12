@@ -17,7 +17,7 @@ export interface Agent {
   color: string;
   createdAt: string;
   updatedAt: string;
-  source?: 'openclaw' | 'superclaw';
+  source?: 'superclaw';
 }
 
 export interface AgentCreateInput {
@@ -69,7 +69,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
     try {
       const resp = await apiFetch<{ data: Agent[] } | Agent[]>('/agents');
       const rawAgents = Array.isArray(resp) ? resp : (resp as { data: Agent[] }).data ?? [];
-      // Normalize agents — handle both OpenClaw and SuperClaw agent formats
+      // Normalize agents — normalize agent data from API
       const agents = (rawAgents as unknown as Array<Record<string, unknown>>).map((a) => ({
         id: (a.id ?? a.name ?? '') as string,
         name: (a.name ?? 'Agent') as string,
@@ -86,7 +86,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
         color: (a.color ?? '#58A6FF') as string,
         createdAt: (a.createdAt ?? a.created_at ?? new Date().toISOString()) as string,
         updatedAt: (a.updatedAt ?? a.updated_at ?? new Date().toISOString()) as string,
-        source: (a.source ?? 'superclaw') as 'openclaw' | 'superclaw',
+        source: 'superclaw' as const,
       })) as Agent[];
       set({ agents });
     } catch (e) {

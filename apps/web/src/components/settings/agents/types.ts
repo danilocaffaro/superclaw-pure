@@ -32,7 +32,7 @@ export interface AgentRow {
   color: string;
   createdAt: string;
   updatedAt: string;
-  source?: 'openclaw' | 'superclaw';
+  source?: 'superclaw';
   gatewayId?: string;
 }
 

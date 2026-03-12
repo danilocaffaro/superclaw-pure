@@ -21,7 +21,6 @@ interface ModelDef {
 const PROVIDER_META: Record<string, { icon: string; color: string }> = {
   anthropic: { icon: '🟠', color: '#D97706' },
   openai: { icon: '🟢', color: '#10B981' },
-  'github-copilot': { icon: '🐙', color: 'var(--text-secondary)' },
   ollama: { icon: '🦙', color: 'var(--green)' },
   google: { icon: '🔵', color: '#4285F4' },
   openrouter: { icon: '🔀', color: '#A855F7' },

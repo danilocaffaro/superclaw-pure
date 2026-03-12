@@ -84,11 +84,6 @@ async function testGoogle(apiKey: string): Promise<{ connected: boolean; message
   }
 }
 
-async function testGitHubCopilot(): Promise<{ connected: boolean; message?: string }> {
-  // GitHub Copilot uses ambient/token-based auth managed externally; we just confirm the config exists
-  return { connected: true };
-}
-
 // ============================================================
 // Route registration
 // ============================================================
@@ -215,10 +210,6 @@ export function registerProviderRoutes(app: FastifyInstance, repo: ProviderRepos
             return reply.send({ status: 'error', message: 'API key not configured' });
           }
           result = await testGoogle(provider.rawApiKey);
-          break;
-        }
-        case 'github-copilot': {
-          result = await testGitHubCopilot();
           break;
         }
         case 'custom': {

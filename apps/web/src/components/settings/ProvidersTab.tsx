@@ -60,15 +60,6 @@ const PROVIDERS: ProviderDef[] = [
     defaultBaseUrl: 'http://localhost:11434',
     keyPlaceholder: '(no key required)',
   },
-  {
-    id: 'copilot',
-    name: 'GitHub Copilot',
-    icon: '🐙',
-    color: '#8B949E',
-    hasBaseUrl: false,
-    defaultBaseUrl: 'https://api.githubcopilot.com',
-    keyPlaceholder: 'ghu_...',
-  },
 ];
 
 function EngineProviders() {
@@ -87,8 +78,7 @@ function EngineProviders() {
         }
         setProviders([...byProvider.entries()].map(([id, count]) => ({
           id,
-          name: id === 'github-copilot' ? 'GitHub Copilot'
-              : id === 'ollama-cluster' ? 'Ollama Cluster'
+          name: id === 'ollama-cluster' ? 'Ollama Cluster'
               : id === 'ollama' ? 'Ollama (local)'
               : id.charAt(0).toUpperCase() + id.slice(1),
           models: count,
@@ -123,7 +113,7 @@ function ProviderCard({ provider }: { provider: ProviderDef }) {
   const [cfg, setCfg] = useState<ProviderConfig>({
     apiKey: '',
     baseUrl: provider.defaultBaseUrl,
-    connected: provider.id === 'copilot', // assume copilot is set up via env
+    connected: false,
     showKey: false,
     testing: false,
   });
@@ -167,7 +157,7 @@ function ProviderCard({ provider }: { provider: ProviderDef }) {
         // Fallback: hit /healthz to at least verify server is alive
         const hres = await fetch('/api/healthz');
         const alive = hres.ok;
-        const fallback = alive && (cfg.apiKey.length > 0 || provider.id === 'ollama' || provider.id === 'copilot');
+        const fallback = alive && (cfg.apiKey.length > 0 || provider.id === 'ollama');
         update('connected', fallback);
         setTestResult({
           ok: fallback,

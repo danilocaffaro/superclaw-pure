@@ -16,7 +16,6 @@ export const DEFAULT_HOST = '0.0.0.0';
 export const PROVIDER_BASE_URLS: Record<string, string> = {
   anthropic: 'https://api.anthropic.com',
   openai: 'https://api.openai.com',
-  'github-copilot': 'https://api.githubcopilot.com',
   google: 'https://generativelanguage.googleapis.com',
   ollama: 'http://localhost:11434',
   openrouter: 'https://openrouter.ai/api',
@@ -43,7 +42,6 @@ export function resolveProviderBaseUrl(
 export const PROVIDER_API_TYPES: Record<string, 'openai' | 'anthropic'> = {
   anthropic: 'anthropic',
   openai: 'openai',
-  'github-copilot': 'openai',
   google: 'openai',
   ollama: 'openai',
   openrouter: 'openai',

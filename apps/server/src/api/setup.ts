@@ -3,7 +3,7 @@ import type { ProviderRepository, ProviderConfig } from '../db/providers.js';
 import { AgentRepository } from '../db/agents.js';
 import { ProviderRepository as ProvRepo } from '../db/providers.js';
 import { initDatabase } from '../db/index.js';
-import { homedir } from 'os';
+// Setup API routes
 import { streamChat } from '../engine/chat-engine.js';
 import { resolveProviderBaseUrl, resolveProviderType, PROVIDER_BASE_URLS } from '../config/defaults.js';
 
@@ -148,48 +148,6 @@ async function testProviderConnection(
       return { success: false, error: `API returned ${res.status}: ${body.slice(0, 200)}` };
     }
 
-    if (providerId === 'github-copilot') {
-      // Try to load the Copilot token from OpenClaw credential cache
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const home = process.env.HOME || homedir();
-        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
-
-        if (!fs.existsSync(tokenPath)) {
-          return { success: false, error: 'GitHub Copilot token not found. Make sure you have GitHub CLI (gh) authenticated or OpenClaw with Copilot configured.' };
-        }
-
-        const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8')) as { token?: string; expiresAt?: number };
-        if (!data.token) {
-          return { success: false, error: 'Copilot token file exists but is empty.' };
-        }
-
-        if (data.expiresAt && Date.now() > data.expiresAt - 60_000) {
-          return { success: false, error: 'Copilot token has expired. Restart OpenClaw to refresh it.' };
-        }
-
-        // Actually test the API
-        const testRes = await fetch('https://api.githubcopilot.com/models', {
-          headers: {
-            'Authorization': `Bearer ${data.token}`,
-            'Copilot-Integration-Id': 'vscode-chat',
-          },
-          signal: AbortSignal.timeout(5000),
-        });
-
-        if (!testRes.ok) {
-          return { success: false, error: `Copilot API returned ${testRes.status}. Token may be expired.` };
-        }
-
-        const json = await testRes.json() as { data?: Array<{ id: string }> };
-        const models = json.data?.map(m => m.id) ?? [];
-        return { success: true, models };
-      } catch (err) {
-        return { success: false, error: `Copilot test failed: ${(err as Error).message}` };
-      }
-    }
-
     return { success: false, error: `Unknown provider: ${providerId}` };
   } catch (err) {
     return { success: false, error: (err as Error).message };
@@ -239,8 +197,8 @@ export function registerSetupRoutes(
       });
     }
 
-    // For ollama, github-copilot, and custom (may have no key), apiKey is optional
-    if (providerId !== 'ollama' && providerId !== 'github-copilot' && providerId !== 'custom' && !apiKey) {
+    // For ollama and custom providers (may have no key), apiKey is optional
+    if (providerId !== 'ollama' && providerId !== 'custom' && !apiKey) {
       return reply.status(400).send({
         error: { code: 'VALIDATION', message: 'apiKey is required' },
       });
@@ -261,11 +219,11 @@ export function registerSetupRoutes(
     const updated = providerRepo.upsert({
       id: saveId,
       name: customName || undefined,
-      apiKey: providerId !== 'ollama' && providerId !== 'github-copilot' ? apiKey : undefined,
+      apiKey: providerId !== 'ollama' ? apiKey : undefined,
       baseUrl,
     });
 
-    // Use models from test if available (e.g. Copilot discovers its own models)
+    // Use models from test if available (discovered during API test)
     const resolvedModels = test.models ?? updated.models.map((m) => m.id);
 
     return {
@@ -334,18 +292,8 @@ export function registerSetupRoutes(
       });
     }
 
-    // Resolve API key: DB key, Copilot token file, or empty for keyless providers (Ollama)
+    // Resolve API key: from DB, or empty for keyless providers (Ollama, LM Studio)
     let apiKey = provConfig.rawApiKey || '';
-    if (!apiKey && providerId === 'github-copilot') {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const home = process.env.HOME || homedir();
-        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
-        const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8')) as { token?: string };
-        apiKey = data.token || '';
-      } catch { /* no token file */ }
-    }
     const isKeyless = providerId === 'ollama' || providerId === 'local' || providerId === 'lmstudio';
     if (!apiKey && !isKeyless) {
       return reply.status(400).send({

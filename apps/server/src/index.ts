@@ -1,7 +1,7 @@
 /**
  * SuperClaw Pure — Server Entry Point
  * 
- * This is the "Pure" version: no OpenClaw Bridge dependency.
+ * This is the "Pure" version: standalone engine.
  * All LLM communication goes through the native chat engine.
  */
 

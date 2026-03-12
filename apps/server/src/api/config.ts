@@ -42,15 +42,6 @@ export function registerConfigRoutes(app: FastifyInstance) {
     } catch { return { data: [] }; }
   });
 
-  // List agents (from DB)
-  app.get('/openclaw/agents', async () => {
-    try {
-      const db = getDb();
-      const rows = db.prepare("SELECT * FROM agents").all();
-      return { data: rows };
-    } catch { return { data: [] }; }
-  });
-
   // GET /config/mode — get current interface mode
   app.get('/config/mode', async (_req, reply) => {
     return reply.send({ data: { mode: currentInterfaceMode } });

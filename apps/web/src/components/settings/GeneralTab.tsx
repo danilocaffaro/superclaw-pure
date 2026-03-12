@@ -5,7 +5,7 @@ import { SectionTitle, SettingRow, Toggle } from './shared';
 
 // ─── General Tab (B068: App config only — no agent/engine config here) ────────
 // Agent config (name, prompt, temperature) → Agents tab → Agent detail
-// Engine config (providers, models) → Providers/Models tabs (read from OpenClaw)
+// Engine config (providers, models) → Providers/Models tabs (managed via Providers tab)
 
 interface AppConfig {
   language: string;

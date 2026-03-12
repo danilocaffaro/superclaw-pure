@@ -154,7 +154,7 @@ export function MessageBubble({ msg }: { msg: Message }) {
   if (isSystem || isSystemNotification) return null;
   if (isTool) return <ToolCallBlock msg={msg} />;
 
-  // Parse structured content arrays from OpenClaw: [{"type":"text","text":"..."}]
+  // Parse structured content arrays: [{"type":"text","text":"..."}]
   let rawContent = msg.content || '';
   if (rawContent.startsWith('[{') && rawContent.includes('"type"')) {
     try {

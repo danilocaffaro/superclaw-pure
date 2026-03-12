@@ -109,7 +109,7 @@ export function parseMentions(message: string, agents: SquadAgent[]): MentionPar
       if (agent) {
         mentionedAgents.add(agent);
       } else {
-        // Try partial match (e.g., "@night" for "Night Ranger")
+        // Try partial match (e.g., "@res" for "Researcher")
         for (const [key, a] of agentByLower) {
           if (key.startsWith(token) && token.length >= 2) {
             mentionedAgents.add(a);

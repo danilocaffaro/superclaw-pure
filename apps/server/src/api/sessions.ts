@@ -1,10 +1,9 @@
 // ============================================================
-// Sessions API — direct SessionManager integration (no bridge dependency)
+// Sessions API — direct SessionManager integration
 // ============================================================
 //
-// NOTE: The bridge-based routes (openclaw-bridge.js) are preserved in bridge/
-// for future OpenClaw integration.  These routes use SessionManager + runAgent
-// so they work standalone, without the bridge.
+// These routes handle session CRUD and real-time streaming (SSE)
+// using the native engine. No external dependencies needed.
 
 import { EventEmitter } from 'events';
 import type { FastifyInstance } from 'fastify';
@@ -35,7 +34,7 @@ function getDefaultProviderId(): string {
   const db = initDatabase();
   const repo = new ProviderRepository(db);
   const available = repo.list().filter(p => p.status === 'connected');
-  for (const preferred of ['anthropic', 'openai', 'github-copilot']) {
+  for (const preferred of ['anthropic', 'openai', 'google', 'openrouter']) {
     if (available.some(p => p.id === preferred)) return preferred;
   }
   return available[0]?.id ?? 'anthropic';

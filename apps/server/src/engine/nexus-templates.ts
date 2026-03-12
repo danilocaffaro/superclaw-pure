@@ -85,7 +85,7 @@ The team is in EXECUTION mode. Follow these rules:
 - QA review is mandatory before merge`,
 
   QA: `[NEXUS v3 — QA Phase]
-The team is in REVIEW/QA mode. Scout leads. Review covers:
+The team is in REVIEW/QA mode. The QA agent leads. Review covers:
 - Code quality: clean, legible, no code smells
 - Functionality: happy path + edge cases + error handling
 - UX: client-ready? would the end user understand this?

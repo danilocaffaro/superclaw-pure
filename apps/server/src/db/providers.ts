@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { homedir } from 'os';
+// Provider configuration and repository
 import { PROVIDER_BASE_URLS } from '../config/defaults.js';
 
 // ============================================================
@@ -20,7 +20,7 @@ export interface ModelConfig {
 export interface ProviderConfig {
   id: string;
   name: string;
-  type: 'anthropic' | 'openai' | 'google' | 'ollama' | 'github-copilot' | 'custom';
+  type: 'anthropic' | 'openai' | 'google' | 'ollama' | 'custom';
   apiKey?: string;
   baseUrl?: string;
   status: 'connected' | 'not_configured' | 'error';
@@ -50,30 +50,6 @@ interface ProviderConfigJson {
 // ============================================================
 
 export const DEFAULT_PROVIDERS: Array<Omit<ProviderConfig, 'status'> & { base_url?: string }> = [
-  {
-    id: 'github-copilot',
-    name: 'GitHub Copilot',
-    type: 'github-copilot',
-    enabled: true,
-    models: [
-      {
-        id: 'claude-opus-4.6',
-        name: 'Claude Opus 4.6',
-        provider: 'github-copilot',
-        contextWindow: 200000,
-        maxOutput: 8192,
-        capabilities: ['text', 'vision', 'tools'],
-      },
-      {
-        id: 'claude-sonnet-4.6',
-        name: 'Claude Sonnet 4.6',
-        provider: 'github-copilot',
-        contextWindow: 200000,
-        maxOutput: 8192,
-        capabilities: ['text', 'vision', 'tools'],
-      },
-    ],
-  },
   {
     id: 'anthropic',
     name: 'Anthropic',
@@ -210,22 +186,6 @@ export class ProviderRepository {
     if (row.type === 'ollama') {
       // Ollama doesn't need an API key; mark as connected by default (actual reachability tested separately)
       status = 'connected';
-    } else if (row.type === 'github-copilot') {
-      // GitHub Copilot uses ambient auth; status depends on whether token file exists
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const home = process.env.HOME || homedir();
-        const tokenPath = path.join(home, '.superclaw', 'credentials', 'github-copilot.token.json');
-        if (fs.existsSync(tokenPath)) {
-          const data = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
-          status = data?.token ? 'connected' : 'not_configured';
-        } else {
-          status = 'not_configured';
-        }
-      } catch {
-        status = 'not_configured';
-      }
     } else {
       status = row.api_key ? 'connected' : 'not_configured';
     }

@@ -85,7 +85,7 @@ export class WorkflowEngine {
           });
 
           // Use the provider directly (standalone mode)
-          // TODO: B003 Phase 2 — route through OpenClaw Bridge for model routing
+          // TODO: B003 Phase 2 — implement model routing
           const router = getProviderRouter();
           const provider = router.getDefault();
           if (!provider) throw new Error('No provider available');

@@ -6,7 +6,7 @@ import { SectionTitle } from './shared';
 interface CredentialEntry {
   name: string;
   masked: string;
-  source: 'openclaw' | 'superclaw';
+  source: 'superclaw';
 }
 
 export default function VaultTab() {
@@ -18,7 +18,7 @@ export default function VaultTab() {
     setLoading(true);
     setError(null);
     try {
-      // Try to get credentials from OpenClaw Bridge config
+      // Try to get credentials from server config
       const res = await fetch('/api/config');
       if (res.ok) {
         const j = await res.json();
@@ -32,14 +32,14 @@ export default function VaultTab() {
             creds.push({
               name: `${name.toUpperCase()}_API_KEY`,
               masked: key ? key.slice(0, 4) + '••••' + key.slice(-4) : '(not set)',
-              source: 'openclaw',
+              source: 'superclaw',
             });
           }
         }
         // Common env vars
         for (const envKey of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GITHUB_TOKEN', 'GOOGLE_API_KEY', 'BRAVE_API_KEY']) {
           if (!creds.find(c => c.name === envKey)) {
-            creds.push({ name: envKey, masked: '(stored in server config)', source: 'openclaw' });
+            creds.push({ name: envKey, masked: '(stored in server config)', source: 'superclaw' });
           }
         }
         setCredentials(creds);

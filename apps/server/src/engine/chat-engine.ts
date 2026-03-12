@@ -1,5 +1,5 @@
 /**
- * Native Chat Engine — replaces OpenClaw Bridge for LLM communication.
+ * Native Chat Engine — handles native LLM communication.
  * Supports OpenAI-compatible and Anthropic native APIs.
  * Streaming via async generators.
  */

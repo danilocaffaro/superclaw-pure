@@ -1,5 +1,5 @@
 /**
- * Native Session Runner — handles chat streaming without OpenClaw Bridge.
+ * Native Session Runner — handles chat streaming using the native LLM adapter.
  * This replaces sessions-bridge.ts which routed everything through WebSocket.
  */
 

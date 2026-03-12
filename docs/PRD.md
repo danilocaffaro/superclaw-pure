@@ -150,7 +150,7 @@ code-reviewed, sandboxed, and tested before publishing.
 |----|-------|-------------------|
 | S043b | Research top 30 OpenClaw ClawHub skills (by installs/stars) | Documented list with use case, risk assessment |
 | S043c | Research top 20 PicoClaw community skills | Documented list with use case, risk assessment |
-| S043d | Select top 17 skills for clean rewrite | Prioritized by user demand, diversity across 17 categories |
+| S043d | Select top 18 skills for clean rewrite | Prioritized by user demand, diversity across 18 categories |
 | S043e | Rewrite selected skills (clean-room, zero deps where possible) | Each skill: SKILL.md + scripts + tests, no copy-paste from originals |
 | S043f | Skill Hub API + UI | Browse, search, install, rate skills from `/skills` panel |
 | S043g | Skill sandboxing | Skills run in restricted context, no raw shell unless approved |
@@ -174,6 +174,7 @@ code-reviewed, sandboxed, and tested before publishing.
 - 🧠 Learning / flashcards / study
 - 🌐 Web browser / scraping / extraction
 - ⚙️ Automation / workflows / cron
+- 📍 Device control / navigation / location
 
 ### Batch 8: Polish & Ship (Sprint 17-18) — "Ready for the world"
 > Goal: Documentation, onboarding, stability, v1.0 release

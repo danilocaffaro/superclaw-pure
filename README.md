@@ -1,146 +1,160 @@
-# SuperClaw Pure ✨
+# SuperClaw Pure
 
-> The personal AI assistant that actually works out of the box.
+> Your private AI assistant — multi-agent, multi-model, runs anywhere.
 
-**Zero-config start** · **Web-first** · **Structured memory** · **Governed execution**
-
----
-
-## Quick Start
-
-```bash
-npx superclaw
-```
-
-Your browser opens. Setup wizard guides you through:
-1. **Choose your LLM** (OpenAI, Anthropic, Google, Ollama, OpenRouter)
-2. **Create your first agent** (name, emoji, personality)
-3. **Start chatting** — you're done in under 5 minutes
-
----
-
-## Why SuperClaw Pure?
-
-| Problem | Solution |
-|---------|----------|
-| 🕐 "Setup took me 2 days" | One command. Browser wizard. < 5 min. |
-| 🧠 "My agent forgets everything" | Typed memory graph (Fact, Decision, Goal, Preference…) with vector + full-text search |
-| 🔥 "Burning $50/day on tokens" | 3-tier smart routing: cheap model for routine, premium for complex |
-| 🔄 "Agent loops 8 times on same answer" | Circuit breakers, governed execution, approval gates |
-| 😴 "Close the tab, agent stops working" | Persistent job queue that survives restarts |
-| 📊 "No idea where my money goes" | Built-in usage dashboard with cost tracking |
-| 🔒 "Security concerns" | Sandboxed execution, approval workflows, no telemetry |
-
----
+SuperClaw Pure is a self-hosted personal AI assistant with native LLM support, conversation memory, and a curated skill library. No cloud dependency, no vendor lock-in — just you and your models.
 
 ## Features
 
-### Core
-- 🤖 **Multi-provider LLM** — OpenAI, Anthropic, Google, Ollama, OpenRouter, any OpenAI-compatible API
-- 🧠 **Structured memory** — typed graph with 6 memory types and relationship edges
-- 🔧 **Tool system** — web search, browser, shell, file ops — all sandboxed
-- 📋 **Skill system** — load skills, browse skill store, compatible with OpenClaw skills
-- 🔌 **MCP client** — connect any MCP server (stdio or HTTP)
+- 🧠 **Multi-Model** — OpenAI, Anthropic, Google, Ollama, OpenRouter, and any OpenAI-compatible API
+- 🤖 **Multi-Agent** — Create specialized agents with custom personas and skills
+- 💬 **Chat Interface** — WhatsApp-like mobile experience + desktop layout
+- 🧩 **18 Curated Skills** — Productivity, coding, search, communication, data, automation, creative, utilities
+- 🔒 **Self-Hosted** — Your data stays on your hardware. SQLite database, zero external dependencies
+- 📊 **Usage Dashboard** — Token usage, costs, model routing analytics
+- 🔌 **External Channels** — Send/receive via Telegram, Discord, Slack, and webhooks
+- 🧬 **Eidetic Memory** — 5-layer memory system with FTS5 search, knowledge graph, and working memory
+- 🛡️ **Security Hardened** — Workspace sandbox, auth middleware, command blocking, circuit breaker
+- 🐳 **Docker Ready** — `docker compose up` and you're running
 
-### Agents & Teams
-- 👥 **Multi-agent** — create specialized agents with different models and personalities
-- 🏢 **Squads** — group agents for collaborative tasks
-- 📣 **@mention routing** — direct messages to specific agents
-- ⚡ **Concurrent execution** — multiple agents working in parallel
+## Quick Start
 
-### Automation
-- ⏰ **Cron jobs** — scheduled tasks with active hours
-- 🔁 **Persistent job queue** — survives server restart
-- ⚡ **Circuit breaker** — auto-disable failing jobs
-- ✅ **Approval workflows** — human-in-the-loop for dangerous actions
+### Option 1: Node.js
 
-### Observability
-- 📊 **Usage dashboard** — token costs, model breakdown, activity heatmap
-- 📈 **Agent metrics** — success rate, response time, error rate
-- 🔔 **Push notifications** — browser alerts for job completion
+```bash
+# Prerequisites: Node.js 22+, pnpm
+git clone https://github.com/danilocaffaro/superclaw-pure.git
+cd superclaw-pure
+pnpm install
+pnpm build
+pnpm start
+# Open http://localhost:4070
+```
 
-### Channels
-- 🌐 **Web UI** — primary interface (PWA mobile-ready)
-- 📱 **Telegram** — chat from your phone
-- 💬 **WhatsApp** — chat from your phone
-- 🎮 **Discord** — chat from your server
-- 🔗 **Public chat** — shareable links, no login needed
+### Option 2: Docker
 
----
+```bash
+docker compose up -d
+# Open http://localhost:4070
+```
+
+## First Run
+
+1. Open `http://localhost:4070` in your browser
+2. The **Setup Wizard** will guide you through:
+   - Creating your user account
+   - Adding your first LLM provider (API key)
+   - Creating your first agent
+3. Start chatting!
 
 ## Architecture
 
 ```
 superclaw-pure/
-├── packages/
-│   ├── core/       ← Engine: LLM, memory, tools, sessions, skills
-│   ├── server/     ← Fastify API + WebSocket + SSE
-│   ├── web/        ← Next.js SPA (chat, dashboard, settings)
-│   └── cli/        ← npx superclaw (start, config, doctor)
-├── skills/         ← Bundled starter skills
-├── docs/           ← Documentation
-└── tests/          ← Test suite
+├── apps/
+│   ├── server/     # Fastify + better-sqlite3 (port 4070)
+│   └── web/        # Next.js static export (SPA)
+├── config/         # Pricing, defaults, security
+├── docs/           # Architecture docs, PRD, research
+└── docker-compose.yml
 ```
 
-**Tech stack:** TypeScript · Node.js 22+ · Fastify 5 · Next.js 15 · SQLite · Zustand · pnpm
+### Server Stack
+- **Runtime**: Node.js 22 (ESM)
+- **Framework**: Fastify v5
+- **Database**: SQLite via better-sqlite3 (zero config)
+- **LLM**: Native streaming via `chat-engine.ts` (no SDK dependencies)
+- **Memory**: 5-layer Eidetic Memory (session buffer → working memory → knowledge graph → FTS5 archival)
+- **Routing**: Quality-aware model routing with 50+ model quality scores
 
----
+### Frontend Stack
+- **Framework**: Next.js 15 (static export)
+- **State**: Zustand
+- **Styling**: Tailwind CSS
+- **Mobile**: Separate `MobileApp.tsx` with WhatsApp-style stack navigation
 
-## Born Virgin 🌱
+## Configuration
 
-SuperClaw Pure ships with **zero agents, zero config, zero assumptions**. 
+### Environment Variables
 
-No hardcoded API keys. No embedded personas. No "Alice" or "Jarvis" pre-installed.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | No | `4070` | Server port |
+| `NODE_ENV` | No | `development` | `production` enables auth |
+| `SUPERCLAW_API_KEY` | In prod | - | API key for auth |
+| `DATABASE_PATH` | No | `~/.superclaw/superclaw.db` | SQLite DB location |
 
-Your first run is a blank canvas. The setup wizard helps you paint it.
+### Provider Setup
 
----
-
-## Migrating from OpenClaw?
+Add providers via the Settings UI or API:
 
 ```bash
-npx superclaw migrate --from openclaw
+# Add OpenAI
+curl -X POST http://localhost:4070/api/config/providers \
+  -H "Content-Type: application/json" \
+  -d '{"id":"openai","name":"OpenAI","type":"openai","baseUrl":"https://api.openai.com/v1","apiKey":"sk-..."}'
 ```
 
-Imports your agents, memory, skills, and conversation history.
+Supported providers: OpenAI, Anthropic, Google (Gemini), Ollama, OpenRouter, GitHub Copilot, Groq, Together, Fireworks, DeepSeek, Mistral, and any OpenAI-compatible endpoint.
 
----
+## Memory System
+
+SuperClaw uses a 5-layer memory architecture:
+
+| Layer | Purpose | Persistence |
+|-------|---------|-------------|
+| **L1 Core** | Agent identity, persona, project notes | Permanent, agent-editable |
+| **L2 Buffer** | Current conversation window | Session-scoped, auto-compacted |
+| **L3 Working** | Task state between compactions | Cross-session, structured |
+| **L4 Graph** | Facts, decisions, goals, entities | Permanent, knowledge graph with edges |
+| **L5 Archival** | Full chat history (FTS5 indexed) | Unlimited, searchable |
+
+## Security
+
+- **Workspace sandbox**: File operations restricted to workspace root
+- **Auth middleware**: API key required in production mode
+- **Command blocking**: 25+ dangerous shell patterns blocked
+- **Circuit breaker**: Auto-disables failing providers (3 strikes, 30min cooldown)
+- **Loop detection**: Jaccard similarity check prevents infinite response loops
+- **Security headers**: CSP, HSTS, X-Frame-Options, etc.
+
+## API
+
+Full REST API at `http://localhost:4070`:
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /agents` | List agents |
+| `POST /sessions` | Create chat session |
+| `POST /sessions/:id/message` | Send message (SSE streaming) |
+| `GET /marketplace/curated` | Browse skill library |
+| `GET /channels` | List external channels |
+| `GET /analytics/overview` | Usage dashboard data |
+| `GET /memory/search?q=...` | Search memory graph |
+
+See `docs/` for full API documentation.
 
 ## Development
 
 ```bash
-git clone https://github.com/danilocaffaro/superclaw-pure.git
-cd superclaw-pure
-pnpm install
-pnpm dev
+# Dev mode (hot reload)
+pnpm dev        # Server
+pnpm dev:web    # Frontend
+
+# Type checking
+pnpm typecheck
+
+# Tests
+pnpm test
+
+# Build
+pnpm build
 ```
-
----
-
-## Roadmap
-
-See [PRD.md](docs/PRD.md) for the full product requirements and delivery plan.
-
-| Batch | Status | What |
-|-------|--------|------|
-| 0: Foundation | 🔨 | Repo, skeleton, basic chat |
-| 1: Engine Core | 📋 | Multi-provider, tools, sessions |
-| 2: Memory | 📋 | Typed graph + vector search |
-| 3: Background | 📋 | Cron, jobs, circuit breaker |
-| 4: Multi-Agent | 📋 | Squads, @mention, concurrent |
-| 5: Extensibility | 📋 | Skills, MCP, API |
-| 6: Dashboard | 📋 | Usage, analytics |
-| 7: Channels | 📋 | Telegram, WhatsApp, Discord |
-| 8: Ship v1.0 | 📋 | Docs, Docker, release |
-
----
-
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md).
-
----
 
 ## License
 
-MIT © 2026 Danilo Caffaro
+MIT
+
+## Credits
+
+Built with ❤️ by the SuperClaw team.

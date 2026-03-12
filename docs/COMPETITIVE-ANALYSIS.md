@@ -183,9 +183,9 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 | 3 | **Loop detection** | Alto — resolve D3 (agent loops) | Baixo — Jaccard similarity + tool call counter | ✅ Sprint 59b |
 | 4 | **Usage dashboard visual** | Médio — resolve D9 gap | Médio — 3-tab dashboard (Overview/Usage/Health) | ✅ Sprint 61 |
 | 5 | **Circuit breaker** | Médio — resolve D10 | Baixo — 3 failures → auto-disable | ✅ Sprint 59b |
-| 6 | **Message coalescing** | Médio — UX polish | Baixo — debounce + batch | 🟡 Sprint 60 |
-| 7 | **Job queue resiliente** | Médio — resolve D10 | Alto — BullMQ ou similar | 🟡 Sprint 62 |
-| 8 | **Channels (Telegram)** | Alto — mas web é primary | Alto — webhook + adapter | 🟡 Sprint 63+ |
+| 6 | **Message coalescing** | Médio — UX polish | Baixo — debounce + batch | ⏳ Backlog (v1.1) |
+| 7 | **Job queue resiliente** | Médio — resolve D10 | Alto — BullMQ ou similar | ⏳ Backlog (v1.1) |
+| 8 | **Channels (Telegram)** | Alto — mas web é primary | Alto — webhook + adapter | ⏳ PRD Batch 7 |
 
 ---
 
@@ -226,56 +226,60 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 | **Audit trail** | `AuditRepository` logs operations to `audit_log` table | `db/audit.ts`, `api/auth.ts` | ✅ Funcional |
 | **Public chat token-gated** | Guest chat requires valid `token` from `shared_links` table | `api/public-chat.ts:50-80` | ✅ Funcional |
 
-### 8.2 Vulnerabilidades Encontradas 🔴
+### 8.2 Vulnerabilidades Encontradas (snapshot pré-Sprint 59) → Status Atual
 
-| # | Severidade | Vulnerabilidade | Detalhe | Mitigação Sugerida |
-|---|-----------|----------------|---------|---------------------|
-| **V1** | 🔴 **Alta** | **Bash tool sem workspace restriction** | `bash.ts` não tem `restrict_to_workspace`; agente pode executar `curl`, `wget`, acessar qualquer diretório do sistema. PicoClaw bloqueia isso nativamente. | Adicionar `cwd` enforcement + whitelist de diretórios |
-| **V2** | 🔴 **Alta** | **Read/Write tools sem workspace guard** | `read.ts` e `write.ts` não chamam `guardPath()` — podem ler/escrever QUALQUER arquivo do sistema (`.ssh/`, `/etc/passwd`, etc.) | Reutilizar `guardPath()` de files.ts nos tools |
-| **V3** | 🔴 **Alta** | **Sem auth em MAIORIA dos endpoints** | `getAuthUser()` existe mas NÃO é chamado como middleware global; apenas `auth.ts` endpoints o usam. `/api/sessions`, `/api/agents`, etc. são abertos. | Hook global de auth ou whitelist de rotas públicas |
-| **V4** | 🟡 **Média** | **Dangerous cmd list incompleta** | Faltam: `curl -o\|pipe`, `wget`, `nc` (netcat), `ssh`, `python -c`, `node -e`, `eval`, `env` dump, `cat /etc/shadow` | Expandir BLOCKED_PATTERNS; considerar allowlist em vez de blocklist |
-| **V5** | 🟡 **Média** | **Sem helmet/security headers** | Não usa `@fastify/helmet`; faltam `X-Frame-Options`, `X-Content-Type-Options`, `CSP`, `Strict-Transport-Security` | `npm i @fastify/helmet` + register |
-| **V6** | 🟡 **Média** | **SSE sem connection limit** | `sse.ts` não limita connections por IP; ataque de exhaustion possível (abrir 1000 SSE connections) | Max 10 SSE connections/IP |
-| **V7** | 🟡 **Média** | **Rate limiter in-memory** | Perde estado em restart; não funciona com múltiplas instâncias | Aceitável para single-server v1, migrar para Redis em v2 |
-| **V8** | 🟢 **Baixa** | **Dev fallback no auth** | Em `NODE_ENV !== 'production'`, retorna primeiro user sem API key | Aceitável — já gated por `NODE_ENV` |
-| **V9** | 🟢 **Baixa** | **Sem XSS sanitization explícita** | ReactMarkdown faz sanitize parcial, mas sem DOMPurify | Adicionar DOMPurify no MarkdownRenderer |
-| **V10** | 🟢 **Baixa** | **File upload limit exists but low** | `files.ts` multipart configured with 25MB limit — sufficient for docs/images, may be low for large datasets | Configurável via env var |
+| # | Severidade Original | Vulnerabilidade | Status | Fix |
+|---|-----------|----------------|--------|-----|
+| **V1** | 🔴 Alta | Bash tool sem workspace restriction | ✅ **FIXED** Sprint 59a | `validateToolPath()` + `isCommandSafe()` + HOME override |
+| **V2** | 🔴 Alta | Read/Write tools sem workspace guard | ✅ **FIXED** Sprint 59a | All 6 tools enforce `validateToolPath()` |
+| **V3** | 🔴 Alta | Sem auth em maioria dos endpoints | ✅ **FIXED** Sprint 59a+63 | Global `onRequest` hook + owner fallback for self-hosted |
+| **V4** | 🟡 Média | Dangerous cmd list incompleta (6 patterns) | ✅ **FIXED** Sprint 59a | Expanded to 25+ patterns (credential exfil, escalation, mining) |
+| **V5** | 🟡 Média | Sem security headers | ✅ **FIXED** Sprint 59a | CSP, X-Frame-Options, X-Content-Type-Options, HSTS |
+| **V6** | 🟡 Média | SSE sem connection limit | ✅ **FIXED** Sprint 59a | 10/IP, 100 total |
+| **V7** | 🟡 Média | Rate limiter in-memory | ⏳ Accepted v1 | Single-server target; Redis in v2 |
+| **V8** | 🟢 Baixa | Dev fallback no auth | ⏳ Accepted | Gated by `NODE_ENV` |
+| **V9** | 🟢 Baixa | Sem XSS sanitization explícita | ⏳ Backlog | DOMPurify planned |
+| **V10** | 🟢 Baixa | File upload 25MB | ⏳ Accepted | Sufficient for docs/images |
 
-### 8.3 Comparação de Segurança vs Concorrentes
+### 8.3 Comparação de Segurança vs Concorrentes (atualizado pós Sprint 59a)
 
 | Controle | SuperClaw Pure | PicoClaw | OpenClaw | CoWork-OS |
 |----------|---------------|----------|----------|-----------|
 | Credential encryption | ✅ AES-256-GCM | ❌ JSON plaintext | ❌ JSON plaintext | ✅ Electron keychain |
-| Workspace sandbox | ❌ **NÃO TEM** | ✅ `restrict_to_workspace` | ✅ Tool-level | ❌ |
-| Cmd blocking | ⚠️ 6 patterns | ✅ 8+ patterns | ❌ | ❌ |
-| Auth | ⚠️ Existe mas não global | ❌ `allowFrom` list | ❌ Single user | ✅ Full auth |
+| Workspace sandbox | ✅ `validateToolPath()` + sensitive paths blocked | ✅ `restrict_to_workspace` | ✅ Tool-level | ❌ |
+| Cmd blocking | ✅ 25+ patterns | ✅ 8+ patterns | ❌ | ❌ |
+| Auth | ✅ Global middleware + RBAC + self-hosted fallback | ❌ `allowFrom` list | ❌ Single user | ✅ Full auth |
 | Rate limiting | ✅ IP-based | ❌ | ❌ | ❌ |
-| Security headers | ❌ Sem helmet | ❌ | N/A (CLI) | ✅ Electron headers |
+| Security headers | ✅ CSP, X-Frame-Options, HSTS | ❌ | N/A (CLI) | ✅ Electron headers |
 | Audit trail | ✅ | ❌ | ❌ | ✅ |
 | SQL injection | ✅ Parameterized | N/A (JSON files) | N/A (JSON files) | ✅ |
+| SSE rate limiting | ✅ 10/IP, 100 total | ❌ | N/A | ❌ |
 
-### 8.4 Security Score
+### 8.4 Security Score (atualizado pós Sprint 59a + 63)
 
-| Aspecto | Score |
-|---------|-------|
-| Criptografia (vault) | 9/10 |
-| Autenticação | 4/10 (existe mas não enforced) |
-| Autorização | 5/10 (RBAC existe, não aplicado globalmente) |
-| Input validation | 5/10 (path guard OK, bash parcial) |
-| Tool sandboxing | 3/10 (cmd blocking mínimo, sem workspace restriction) |
-| Network security | 4/10 (rate limit OK, sem helmet, sem SSE limit) |
-| **TOTAL** | **5.0/10** |
+| Aspecto | Antes (a222eb5) | Depois (a3deddd) |
+|---------|----------------|-----------------|
+| Criptografia (vault) | 9/10 | 9/10 |
+| Autenticação | 4/10 | **7/10** (global middleware + owner fallback) |
+| Autorização | 5/10 | **7/10** (RBAC enforced globally) |
+| Input validation | 5/10 | **7/10** (validateToolPath + 25 cmd patterns) |
+| Tool sandboxing | 3/10 | **7/10** (workspace sandbox + sensitive paths blocked) |
+| Network security | 4/10 | **7/10** (headers + SSE limits + rate limit) |
+| **TOTAL** | **5.0/10** | **7.3/10** |
 
 ### 8.5 Prioridade de Fix
 
-| Sprint | Fix | Impacto |
-|--------|-----|---------|
-| **59** | V3: Auth middleware global | 🔴 Crítico — qualquer um pode CRUD agents/sessions |
-| **59** | V1+V2: Workspace restriction nos tools | 🔴 Crítico — agente pode ler `.ssh/id_rsa` |
-| **59** | V5: @fastify/helmet | 🟡 Fácil — 2 linhas de código |
-| **60** | V4: Expandir blocked patterns | 🟡 Lista maior de patterns |
-| **60** | V6: SSE connection limit | 🟡 Counter per IP |
-| **61** | V9: DOMPurify | 🟢 npm install + wrap |
+### 8.5 Fix History
+
+| Sprint | Fix | Status |
+|--------|-----|--------|
+| **59a** | V3: Auth middleware global | ✅ Done (`a772e00`) |
+| **59a** | V1+V2: Workspace restriction nos tools | ✅ Done (`a772e00`) |
+| **59a** | V4: 25+ blocked command patterns | ✅ Done (`a772e00`) |
+| **59a** | V5: Security headers (CSP, HSTS, etc.) | ✅ Done (`a772e00`) |
+| **59a** | V6: SSE connection limit (10/IP, 100 total) | ✅ Done (`a772e00`) |
+| **63** | V3b: Self-hosted owner fallback | ✅ Done (`a3deddd`) |
+| Backlog | V9: DOMPurify | ⏳ Planned (v1.1) |
 
 ---
 

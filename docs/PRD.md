@@ -139,6 +139,40 @@
 | S047 | Public chat (shareable links) | Generate link, guest can chat without account |
 | S048 | Channel management UI | Connect/disconnect channels, see status |
 
+### Batch 7.5: Curated Skill Hub (Sprint 16.5) — "Safe skills, no malware"
+> Goal: Research top OpenClaw + PicoClaw community skills, rewrite clean versions, ship in SuperClaw Skill Hub
+
+**Rationale:** Community skills from ClawHub/PicoClaw may contain malicious code, unaudited dependencies, or
+prompt injection vectors. SuperClaw Pure curates a **safe, rewritten skill library** — every skill is
+code-reviewed, sandboxed, and tested before publishing.
+
+| ID | Story | Acceptance Criteria |
+|----|-------|-------------------|
+| S043b | Research top 30 OpenClaw ClawHub skills (by installs/stars) | Documented list with use case, risk assessment |
+| S043c | Research top 20 PicoClaw community skills | Documented list with use case, risk assessment |
+| S043d | Select top 15 skills for clean rewrite | Prioritized by user demand, diversity of use cases |
+| S043e | Rewrite selected skills (clean-room, zero deps where possible) | Each skill: SKILL.md + scripts + tests, no copy-paste from originals |
+| S043f | Skill Hub API + UI | Browse, search, install, rate skills from `/skills` panel |
+| S043g | Skill sandboxing | Skills run in restricted context, no raw shell unless approved |
+| S043h | Skill verification badge (✅ Curated) | Visual indicator for audited vs community-contributed skills |
+
+**Target categories for curation:**
+- 🔍 Web search / research
+- 📊 Data analysis / visualization
+- ✍️ Content creation / writing
+- 🗓️ Calendar / scheduling / reminders
+- 📧 Email management
+- 💻 Coding assistance
+- 🏠 Smart home / IoT
+- 📈 Finance / budget tracking
+- 🎨 Image generation
+- 🔊 Audio / TTS / transcription
+- 🌐 Translation
+- 📋 Task management / productivity
+- 🔒 Security / privacy tools
+- 📱 Social media management
+- 🧠 Learning / flashcards / study
+
 ### Batch 8: Polish & Ship (Sprint 17-18) — "Ready for the world"
 > Goal: Documentation, onboarding, stability, v1.0 release
 
@@ -272,5 +306,6 @@ Pro tips:
 | 5: Extensibility | 11-12 | 1 week | Skills + MCP |
 | 6: Dashboard | 13-14 | 1 week | Analytics |
 | 7: Channels | 15-16 | 1 week | Telegram/WhatsApp/Discord |
+| 7.5: Skill Hub | 16.5 | 3-4 days | Curated safe skill library |
 | 8: Polish & Ship | 17-18 | 1 week | v1.0 release |
-| **Total** | **18 sprints** | **~9 weeks** | **v1.0** |
+| **Total** | **~19 sprints** | **~10 weeks** | **v1.0** |

@@ -115,6 +115,44 @@
 - Newer, less ecosystem
 - FSL license (not pure open source)
 
+### PicoClaw (Apache 2.0, Go, by Sipeed)
+**Stars:** 24K (0→12K in 1 week!), `sipeed/picoclaw`
+**Formerly:** Moltbot → Clawdbot → PicoClaw
+
+**Pontos fortes:**
+- **Go single binary** — <10MB RAM, 1s boot on 0.6GHz single core
+- **$10 hardware** — runs on LicheeRV-Nano, Raspberry Pi Zero, old Android phones via Termux
+- **Multi-arch** — RISC-V, ARM, MIPS, x86 (tudo cross-compiled)
+- **AI-bootstrapped** — 95% do código gerado pelo próprio agente com human-in-the-loop
+- **`picoclaw onboard` wizard** — guided first-run, similar ao que queremos
+- **model_list config** — zero-code provider addition, format simples
+- **5 chat channels** — Telegram, Discord, QQ, DingTalk, LINE
+- **Web launcher** — browser UI at :18800 (Docker compose)
+- **Workspace sandboxing** — `restrict_to_workspace: true` bloqueia acesso fora do workspace
+- **Dangerous command blocking** — `rm -rf`, `format`, `dd`, fork bomb automaticamente bloqueados
+- **Heartbeat system** — HEARTBEAT.md checked every 30min (idêntico ao OpenClaw)
+- **Subagent spawn** — long tasks spawned async, non-blocking heartbeat
+- **Agent Social Network** — ClawdChat.ai para agentes se conectarem entre si
+- **5 web search providers** — Brave, Tavily, DuckDuckGo, Perplexity, SearXNG (self-hosted)
+- **Docker support** — docker-compose com profiles (gateway, launcher, agent)
+- **Old phone revival** — marketing genial: "Give your decade-old phone a second life!"
+
+**Fraquezas:**
+- CLI-only (web launcher é básico, não tem dashboard/UI rica)
+- Sem multi-agent/squads nativo
+- Sem usage dashboard/cost tracking
+- Sem memory graph (usa MEMORY.md flat file como OpenClaw)
+- Security warning: "may have unresolved network security issues"
+- Crescimento explosivo = muitos PRs, poucos maintainers
+
+**O que absorver para SuperClaw Pure:**
+1. **Onboard wizard** (`picoclaw onboard`) — inspiração direta para nosso Setup Wizard
+2. **model_list format** — config simples sem código
+3. **Workspace sandboxing** — `restrict_to_workspace` + dangerous command blocking
+4. **Multi-search fallback** — cascata Brave → Tavily → DuckDuckGo
+5. **Docker compose profiles** — deploy facilitado
+6. **Subagent spawn pattern** — non-blocking async tasks
+
 ---
 
 ## 4. Inspiração: Wolf-Server (Proprietary Origin)
@@ -142,27 +180,27 @@
 
 ## 5. Matriz de Comparação
 
-| Aspecto | OpenClaw (atual) | CoWork-OS | Spacebot | **SuperClaw Pure (target)** |
-|---------|-----------------|-----------|----------|---------------------------|
-| **Linguagem** | TypeScript/Node.js | TypeScript/Electron | Rust | **TypeScript (Next.js + Fastify)** |
-| **Deploy** | `npm i -g openclaw` + 30min config | `npm i -g cowork-os` + works | Binary or one-click hosted | **One-click web (npx) + Setup Wizard** |
-| **Time-to-value** | 2-3 dias | ~30 min | ~10 min | **< 5 min (target)** |
-| **UI** | CLI + chat channels | Electron desktop | Discord/Slack/Web embed | **Web-first SPA (PWA mobile)** |
-| **Channels** | 9 (WhatsApp, TG, Discord...) | 15 | 5 (Discord, Slack, TG, Twitch, Web) | **Web native + channel plugins** |
-| **LLM Providers** | ~15 | 30+ | ~10 + custom | **OpenAI-compatible universal + presets** |
-| **Memory** | Markdown files (flat) | 6 subsystems merged | Typed graph (8 types + edges) | **Typed graph + vector + full-text** |
-| **Agent concurrency** | Single-threaded session | Multi-agent collab | True concurrent (branch/worker) | **Worker pool + concurrent dispatch** |
-| **Model routing** | Manual per-session | Auto per provider | 4-level auto-routing | **3-tier auto (cheap/standard/premium)** |
-| **Background tasks** | Cron/heartbeat (session-bound) | Autonomous mode | Cron with circuit breaker | **Persistent job queue + cron** |
-| **Security** | Basic (sandboxed tools) | 3200+ tests, approval gates | Configurable permissions | **Approval flows + sandboxed exec** |
-| **Setup experience** | Edit JSON, configure manually | Works out of box (OpenRouter free) | Config TOML or hosted | **Guided wizard, zero-config start** |
-| **Extensibility** | ClawHub skills | Plugin Store + packs | skills.sh + MCP | **Skill store + MCP + custom tools** |
-| **Usage tracking** | None visual | Dashboard (cost/tokens/heatmaps) | None visual | **Built-in analytics dashboard** |
-| **Self-hosted** | Yes (only) | Yes (only) | Yes or hosted | **Yes + optional cloud deploy** |
-| **License** | Apache 2.0 | MIT | FSL (restricted) | **MIT** |
-| **Multi-user** | No (single user) | No (single user) | Yes (communities) | **Single user (v1) → Multi (v2)** |
-| **Build mode** | No | Concept→Plan→Scaffold→Iterate | No | **Yes (phased project canvas)** |
-| **Playbook/learning** | Manual skills | Auto-capture + auto-promote | No | **Playbook → auto-skill pipeline** |
+| Aspecto | OpenClaw | CoWork-OS | Spacebot | PicoClaw | **SuperClaw Pure** |
+|---------|---------|-----------|----------|----------|-------------------|
+| **Linguagem** | TypeScript | TypeScript/Electron | Rust | Go | **TypeScript** |
+| **Stars** | 145K+ | Growing | 1.7K | 24K | **New** |
+| **Deploy** | `npm i -g` + 30min | `npm i -g` + works | Binary/hosted | Binary + onboard | **npx + Wizard** |
+| **Time-to-value** | 2-3 dias | ~30 min | ~10 min | ~2 min | **< 5 min** |
+| **UI** | CLI + channels | Electron desktop | Discord/Slack/Web | CLI (basic web) | **Web-first SPA** |
+| **Channels** | 9 | 15 | 5 | 5 (TG/Discord/QQ/DingTalk/LINE) | **Web + plugins** |
+| **LLM Providers** | ~15 | 30+ | ~10 | model_list (any) | **Universal adapter** |
+| **Memory** | Markdown flat | 6 subsystems | Typed graph | MEMORY.md flat | **Graph + vector** |
+| **Concurrency** | Single-thread | Multi-agent | True concurrent | Subagent spawn | **Worker pool** |
+| **Model routing** | Manual | Auto per provider | 4-level auto | Manual | **3-tier auto** |
+| **Background** | Cron/heartbeat | Autonomous | Cron + breaker | Heartbeat + spawn | **Job queue + cron** |
+| **Security** | Basic sandbox | 3200+ tests | Configurable | Workspace sandbox + cmd block | **Approval + sandbox** |
+| **Setup** | Edit JSON | Works OOB | Config/hosted | `picoclaw onboard` | **Guided wizard** |
+| **Extensibility** | ClawHub | Plugin Store | skills.sh + MCP | Skills dir | **Store + MCP** |
+| **Usage tracking** | None | Dashboard | None | None | **Analytics** |
+| **RAM** | >1GB | Heavy (Electron) | ~50MB | <10MB | **~100-200MB** |
+| **License** | Apache 2.0 | MIT | FSL | Apache 2.0 | **MIT** |
+| **Multi-user** | No | No | Yes (communities) | No | **v2** |
+| **Hardware** | Mac/PC | Mac/PC | Mac/PC/Linux | $10 boards! | **Any Node.js** |
 
 ---
 

@@ -26,7 +26,7 @@ export function ToolChipsBar() {
   const chips: { icon: string; label: string; color: string; count?: number; onClick: () => void }[] = [
     { icon: '⚡', label: 'Skills', color: 'var(--coral)', onClick: () => openSettings('skills') },
     { icon: '🔌', label: 'MCP', count: 5, color: 'var(--purple)', onClick: () => openSettings('mcp') },
-    { icon: '🤖', label: 'Claude Opus 4', color: 'var(--blue)', onClick: () => openSettings('models') },
+    { icon: '🤖', label: 'Models', color: 'var(--blue)', onClick: () => openSettings('models') },
     {
       icon: '🧠', label: extendedThinking ? 'Extended ✓' : 'Extended',
       color: extendedThinking ? 'var(--green)' : 'var(--yellow)', onClick: toggleExtended,

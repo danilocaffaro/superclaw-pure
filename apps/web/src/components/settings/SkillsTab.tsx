@@ -19,7 +19,7 @@ export default function SkillsTab() {
   const [reloading, setReloading] = useState(false);
 
   const load = () => {
-    fetch('/api/bridge/skills')
+    fetch('/api/skills')
       .then(r => r.json())
       .then((d: { data?: { skills?: Skill[] } | Skill[] }) => {
         const raw = d?.data;
@@ -35,7 +35,7 @@ export default function SkillsTab() {
   const handleReload = async () => {
     setReloading(true);
     try {
-      await fetch('/api/bridge/skills/reload', { method: 'POST' });
+      await fetch('/api/skills/reload', { method: 'POST' });
       load();
     } catch { /* ignore */ } finally { setReloading(false); }
   };
@@ -49,7 +49,7 @@ export default function SkillsTab() {
     <div>
       <SectionTitle
         title="Skills"
-        desc={`${skills.length} skills installed in OpenClaw. Skills extend agent capabilities.`}
+        desc={`${skills.length} skills installed. Skills extend agent capabilities.`}
       />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
@@ -78,7 +78,7 @@ export default function SkillsTab() {
       </div>
 
       {loading ? (
-        <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '16px 0' }}>Loading from OpenClaw…</div>
+        <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '16px 0' }}>Loading skills…</div>
       ) : filtered.length === 0 ? (
         <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '16px 0' }}>
           {search ? 'No skills match your search.' : 'No skills found.'}

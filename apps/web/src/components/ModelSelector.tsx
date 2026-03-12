@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUIStore } from '@/stores/ui-store';
 
-// ─── Model definitions ───────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────────
 
 interface ModelDef {
   id: string;
@@ -17,69 +17,82 @@ interface ModelDef {
   free?: boolean;
 }
 
-const MODELS: ModelDef[] = [
-  {
-    id: 'copilot/claude-opus-4.6',
-    name: 'Claude Opus 4.6',
-    provider: 'GitHub Copilot',
-    providerIcon: '🐙',
-    providerColor: 'var(--text-secondary)',
-    contextK: 200,
-  },
-  {
-    id: 'copilot/claude-sonnet-4.6',
-    name: 'Claude Sonnet 4.6',
-    provider: 'GitHub Copilot',
-    providerIcon: '🐙',
-    providerColor: 'var(--text-secondary)',
-    contextK: 200,
-  },
-  {
-    id: 'anthropic/claude-sonnet-4-5',
-    name: 'Claude Sonnet 4.5',
-    provider: 'Anthropic',
-    providerIcon: '🟠',
-    providerColor: '#D97706',
-    contextK: 200,
-    priceIn: 3.0,
-    priceOut: 15.0,
-  },
-  {
-    id: 'ollama/deepseek-r1-32b',
-    name: 'DeepSeek R1 32B',
-    provider: 'Ollama (local)',
-    providerIcon: '🦙',
-    providerColor: 'var(--green)',
-    contextK: 128,
-    free: true,
-  },
-  {
-    id: 'ollama/qwen3-8b',
-    name: 'Qwen3 8B',
-    provider: 'Ollama (local)',
-    providerIcon: '🦙',
-    providerColor: 'var(--green)',
-    contextK: 32,
-    free: true,
-  },
-];
+// Provider display metadata — cosmetic only, NOT model lists
+const PROVIDER_META: Record<string, { icon: string; color: string }> = {
+  anthropic: { icon: '🟠', color: '#D97706' },
+  openai: { icon: '🟢', color: '#10B981' },
+  'github-copilot': { icon: '🐙', color: 'var(--text-secondary)' },
+  ollama: { icon: '🦙', color: 'var(--green)' },
+  google: { icon: '🔵', color: '#4285F4' },
+  openrouter: { icon: '🔀', color: '#A855F7' },
+};
 
-// Group by provider
-const GROUPED = MODELS.reduce<Record<string, ModelDef[]>>((acc, m) => {
-  if (!acc[m.provider]) acc[m.provider] = [];
-  acc[m.provider].push(m);
-  return acc;
-}, {});
+function getProviderMeta(providerId: string) {
+  return PROVIDER_META[providerId] ?? { icon: '🤖', color: 'var(--text-secondary)' };
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────────
 
 export default function ModelSelector() {
   const { selectedModel, setSelectedModel } = useUIStore();
   const [open, setOpen] = useState(false);
+  const [models, setModels] = useState<ModelDef[]>([]);
+  const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
-  const currentModel = MODELS.find((m) => m.id === selectedModel) ?? MODELS[0];
+  // Fetch models from API on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchModels() {
+      try {
+        const res = await fetch('/api/config/providers');
+        if (!res.ok) return;
+        const { data: providers } = await res.json();
+        const fetched: ModelDef[] = [];
+        for (const prov of providers) {
+          const meta = getProviderMeta(prov.id);
+          const isLocal = ['ollama', 'local', 'lmstudio'].includes(prov.type ?? prov.id);
+          for (const m of prov.models ?? []) {
+            const modelId = typeof m === 'string' ? m : m.id;
+            const modelName = typeof m === 'string' ? m : (m.name ?? m.id);
+            fetched.push({
+              id: `${prov.id}/${modelId}`,
+              name: modelName,
+              provider: prov.name ?? prov.id,
+              providerIcon: meta.icon,
+              providerColor: meta.color,
+              contextK: typeof m === 'object' ? (m.contextK ?? 128) : 128,
+              priceIn: typeof m === 'object' ? m.priceIn : undefined,
+              priceOut: typeof m === 'object' ? m.priceOut : undefined,
+              free: isLocal,
+            });
+          }
+        }
+        if (!cancelled) {
+          setModels(fetched);
+          // If selected model is not in the list, auto-select first
+          if (fetched.length > 0 && !fetched.find((m) => m.id === selectedModel)) {
+            setSelectedModel(fetched[0].id);
+          }
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchModels();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentModel = models.find((m) => m.id === selectedModel) ?? models[0];
+
+  // Group by provider
+  const grouped = models.reduce<Record<string, ModelDef[]>>((acc, m) => {
+    if (!acc[m.provider]) acc[m.provider] = [];
+    acc[m.provider].push(m);
+    return acc;
+  }, {});
 
   // Close on outside click
   useEffect(() => {
@@ -100,6 +113,32 @@ export default function ModelSelector() {
     if (open) document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
+
+  if (loading || !currentModel) {
+    return (
+      <div style={{ position: 'relative', width: '100%' }}>
+        <button
+          disabled
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '7px 10px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--input-bg)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            cursor: 'default',
+          }}
+        >
+          <span style={{ fontSize: 14, flexShrink: 0 }}>⏳</span>
+          <span style={{ flex: 1, fontSize: 12 }}>Loading models...</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
@@ -176,9 +215,11 @@ export default function ModelSelector() {
             zIndex: 9999,
             overflow: 'hidden',
             animation: 'dropUp 120ms ease',
+            maxHeight: 320,
+            overflowY: 'auto',
           }}
         >
-          {Object.entries(GROUPED).map(([provider, models], gi) => (
+          {Object.entries(grouped).map(([provider, provModels], gi) => (
             <div key={provider}>
               {/* Provider header */}
               <div
@@ -192,11 +233,11 @@ export default function ModelSelector() {
                   borderTop: gi > 0 ? '1px solid var(--border)' : 'none',
                 }}
               >
-                {models[0].providerIcon} {provider}
+                {provModels[0].providerIcon} {provider}
               </div>
 
               {/* Model items */}
-              {models.map((model) => {
+              {provModels.map((model) => {
                 const isSelected = selectedModel === model.id;
                 return (
                   <button
@@ -268,6 +309,21 @@ export default function ModelSelector() {
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
                         {model.contextK}K ctx
+                        {model.free && (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              color: 'var(--green)',
+                              background: 'var(--green-subtle)',
+                              padding: '0 4px',
+                              borderRadius: 'var(--radius-sm)',
+                            }}
+                          >
+                            LOCAL
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -290,15 +346,19 @@ export default function ModelSelector() {
                         <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                           ${model.priceIn}/M
                         </span>
-                      ) : (
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Copilot</span>
-                      )}
+                      ) : null}
                     </div>
                   </button>
                 );
               })}
             </div>
           ))}
+
+          {models.length === 0 && (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+              No models configured. Add a provider in Settings.
+            </div>
+          )}
         </div>
       )}
 

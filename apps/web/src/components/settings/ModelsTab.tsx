@@ -17,86 +17,53 @@ interface ModelDef {
   free?: boolean;
 }
 
-const MODELS: ModelDef[] = [
-  {
-    id: 'copilot/claude-opus-4.6',
-    name: 'Claude Opus 4.6',
-    provider: 'GitHub Copilot',
-    providerIcon: '🐙',
-    contextK: 200,
-  },
-  {
-    id: 'copilot/claude-sonnet-4.6',
-    name: 'Claude Sonnet 4.6',
-    provider: 'GitHub Copilot',
-    providerIcon: '🐙',
-    contextK: 200,
-  },
-  {
-    id: 'anthropic/claude-sonnet-4-5',
-    name: 'Claude Sonnet 4.5',
-    provider: 'Anthropic',
-    providerIcon: '🟠',
-    contextK: 200,
-    priceIn: 3.0,
-    priceOut: 15.0,
-  },
-  {
-    id: 'ollama/deepseek-r1-32b',
-    name: 'DeepSeek R1 32B',
-    provider: 'Ollama (local)',
-    providerIcon: '🦙',
-    contextK: 128,
-    free: true,
-  },
-  {
-    id: 'ollama/qwen3-8b',
-    name: 'Qwen3 8B',
-    provider: 'Ollama (local)',
-    providerIcon: '🦙',
-    contextK: 32,
-    free: true,
-  },
-];
+// Provider display metadata
+const PROVIDER_META: Record<string, { icon: string; displayName: string }> = {
+  anthropic: { icon: '🟠', displayName: 'Anthropic' },
+  openai: { icon: '🟢', displayName: 'OpenAI' },
+  'github-copilot': { icon: '🐙', displayName: 'GitHub Copilot' },
+  ollama: { icon: '🦙', displayName: 'Ollama (local)' },
+  'ollama-cluster': { icon: '🦙', displayName: 'Ollama Cluster' },
+  google: { icon: '🔵', displayName: 'Google AI' },
+  openrouter: { icon: '🔀', displayName: 'OpenRouter' },
+};
 
 export default function ModelsTab() {
   const { selectedModel, setSelectedModel } = useUIStore();
   const [dailyTokensK, setDailyTokensK] = useState(100);
-  const [bridgeModels, setBridgeModels] = useState<ModelDef[]>([]);
-  const [bridgeLoading, setBridgeLoading] = useState(true);
+  const [allModels, setAllModels] = useState<ModelDef[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load real models from OpenClaw Bridge (B070)
+  // Fetch models from providers API
   useEffect(() => {
-    fetch('/api/bridge/models')
+    fetch('/api/config/providers')
       .then(r => r.json())
-      .then((d: { data?: { models?: Array<{id: string; provider: string; contextWindow?: number; pricing?: {inputPerM?: number; outputPerM?: number}}> } }) => {
-        const raw = d?.data?.models ?? [];
-        setBridgeModels(raw.map(m => ({
-          id: m.id,
-          name: m.id.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) ?? m.id,
-          provider: m.provider === 'github-copilot' ? 'GitHub Copilot'
-                  : m.provider === 'ollama-cluster' ? 'Ollama Cluster'
-                  : m.provider === 'ollama' ? 'Ollama (local)'
-                  : m.provider.charAt(0).toUpperCase() + m.provider.slice(1),
-          providerIcon: m.provider === 'github-copilot' ? '🐙'
-                      : m.provider.includes('ollama') ? '🦙'
-                      : m.provider === 'anthropic' ? '🟠'
-                      : m.provider === 'openai' ? '⬛'
-                      : '🤖',
-          contextK: m.contextWindow ? Math.round(m.contextWindow / 1000) : 200,
-          priceIn: m.pricing?.inputPerM,
-          priceOut: m.pricing?.outputPerM,
-          free: m.provider.includes('ollama'),
-        })));
+      .then((d: { data?: Array<{ id: string; name?: string; type?: string; models?: Array<any> }> }) => {
+        const providers = d?.data ?? [];
+        const models: ModelDef[] = [];
+        for (const prov of providers) {
+          const meta = PROVIDER_META[prov.id] ?? { icon: '🤖', displayName: prov.name ?? prov.id };
+          const isLocal = ['ollama', 'local', 'lmstudio'].includes(prov.type ?? prov.id);
+          for (const m of prov.models ?? []) {
+            const modelId = typeof m === 'string' ? m : m.id;
+            const modelName = typeof m === 'string' ? m : (m.name ?? m.id);
+            models.push({
+              id: `${prov.id}/${modelId}`,
+              name: modelName,
+              provider: meta.displayName,
+              providerIcon: meta.icon,
+              contextK: typeof m === 'object' ? (m.contextK ?? m.contextWindow ? Math.round((m.contextWindow ?? 128000) / 1000) : 128) : 128,
+              priceIn: typeof m === 'object' ? (m.priceIn ?? m.pricing?.inputPerM) : undefined,
+              priceOut: typeof m === 'object' ? (m.priceOut ?? m.pricing?.outputPerM) : undefined,
+              free: isLocal,
+            });
+          }
+        }
+        setAllModels(models);
       })
-      .catch(() => setBridgeModels([]))
-      .finally(() => setBridgeLoading(false));
+      .catch(() => setAllModels([]))
+      .finally(() => setLoading(false));
   }, []);
-
-  // Merge: Bridge models first (real), then any local-only MODELS not in Bridge
-  const bridgeIds = new Set(bridgeModels.map(m => m.id));
-  const localOnly = MODELS.filter(m => !bridgeIds.has(m.id));
-  const allModels = bridgeLoading ? MODELS : [...bridgeModels, ...localOnly];
 
   const grouped = allModels.reduce<Record<string, ModelDef[]>>((acc, m) => {
     if (!acc[m.provider]) acc[m.provider] = [];
@@ -142,7 +109,7 @@ export default function ModelsTab() {
             Default model
           </div>
           <div style={{ fontSize: 13, color: 'var(--text)' }}>
-            {MODELS.find((m) => m.id === selectedModel)?.name ?? 'None selected'}
+            {allModels.find((m) => m.id === selectedModel)?.name ?? 'None selected'}
           </div>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-secondary)' }}>

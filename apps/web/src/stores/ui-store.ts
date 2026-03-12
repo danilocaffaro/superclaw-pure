@@ -89,7 +89,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Settings defaults
   settingsOpen: false,
   settingsTab: 'general',
-  selectedModel: 'copilot/claude-opus-4.6',
+  selectedModel: '',
 
   // Interface mode — persisted in localStorage, default: 'lite'
   // On mobile first visit (no localStorage key), force 'lite'

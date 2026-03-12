@@ -116,12 +116,12 @@ export default function AgentsTab() {
     }
   }
 
-  // B058: Use BridgePool byState counts (active/offline) when available
-  const bridgeActive = poolStatus?.byState?.['active'] ?? null;
-  const bridgeOffline = poolStatus?.byState?.['offline'] ?? 0;
-  const bridgeTotal = poolStatus?.total ?? 0;
-  const activeCount = bridgeActive !== null ? bridgeActive : (statusCounts.active ?? 0);
-  const offlineCount = bridgeActive !== null ? bridgeOffline : ((statusCounts.idle ?? 0) + (statusCounts.busy ?? 0));
+  // Use pool status counts (active/offline) when available
+  const poolActive = poolStatus?.byState?.['active'] ?? null;
+  const poolOffline = poolStatus?.byState?.['offline'] ?? 0;
+  const poolTotal = poolStatus?.total ?? 0;
+  const activeCount = poolActive !== null ? poolActive : (statusCounts.active ?? 0);
+  const offlineCount = poolActive !== null ? poolOffline : ((statusCounts.idle ?? 0) + (statusCounts.busy ?? 0));
 
   // Count unique gateways from SSE agent data
   const gatewaySet = new Set<string>();

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4070';
+const API = '';
 
 interface MemoryEntry {
   id: string; agent_id: string;

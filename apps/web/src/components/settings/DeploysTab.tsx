@@ -7,8 +7,7 @@ interface BuildInfo {
   version: string;
   buildTime: string;
   nodeVersion: string;
-  bridgeConnected: boolean;
-  bridgeUrl: string;
+  engine: string;
   uptime: number;
 }
 
@@ -60,8 +59,7 @@ export default function DeploysTab() {
             { label: 'Version', value: buildInfo.version || '0.2.0', icon: '📦' },
             { label: 'Uptime', value: formatUptime(buildInfo.uptime), icon: '⏱️' },
             { label: 'Node.js', value: buildInfo.nodeVersion || process.env.NODE_ENV || '—', icon: '🟢' },
-            { label: 'Bridge', value: buildInfo.bridgeConnected ? '✅ Connected' : '❌ Disconnected', icon: '🔌' },
-            { label: 'Bridge URL', value: buildInfo.bridgeUrl || 'ws://127.0.0.1:18789', icon: '🌐' },
+            { label: 'Engine', value: buildInfo.engine || 'native', icon: '⚡' },
             { label: 'Build Time', value: buildInfo.buildTime || '—', icon: '🕐' },
           ].map((item) => (
             <div

@@ -21,7 +21,7 @@ export async function fetchHealth() {
     status: string;
     version: string;
     engine: string;
-    bridge: 'connected' | 'disconnected';
+    engine: 'native' | 'bridge';
   }>('/healthz');
 }
 
@@ -93,8 +93,4 @@ export async function deleteSquad(id: string) {
 
 export async function fetchModels() {
   return apiFetch<{ data: unknown }>('/models');
-}
-
-export async function fetchOpenClawAgents() {
-  return apiFetch<{ data: unknown }>('/openclaw/agents');
 }

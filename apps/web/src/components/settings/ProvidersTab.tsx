@@ -76,7 +76,7 @@ function EngineProviders() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/bridge/models')
+    fetch('/api/config/providers')
       .then(r => r.json())
       .then((d: { data?: { models?: Array<{id: string; provider: string}> } }) => {
         const models = d?.data?.models ?? [];
@@ -98,8 +98,8 @@ function EngineProviders() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '8px 0 20px' }}>Loading from OpenClaw…</div>;
-  if (providers.length === 0) return <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '8px 0 20px' }}>⚠️ No providers found — check OpenClaw Bridge connection.</div>;
+  if (loading) return <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '8px 0 20px' }}>Loading providers…</div>;
+  if (providers.length === 0) return <div style={{ color: 'var(--fg-muted)', fontSize: 13, padding: '8px 0 20px' }}>⚠️ No providers configured. Add one below.</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
@@ -112,7 +112,7 @@ function EngineProviders() {
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 }} />
           <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>{p.name}</span>
           <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{p.models} model{p.models !== 1 ? 's' : ''}</span>
-          <span style={{ fontSize: 11, color: 'var(--green)', background: 'rgba(63,185,80,0.1)', padding: '2px 8px', borderRadius: 99 }}>via OpenClaw</span>
+          <span style={{ fontSize: 11, color: 'var(--green)', background: 'rgba(63,185,80,0.1)', padding: '2px 8px', borderRadius: 99 }}>configured</span>
         </div>
       ))}
     </div>
@@ -428,17 +428,17 @@ function ProviderCard({ provider }: { provider: ProviderDef }) {
 export default function ProvidersTab() {
   return (
     <div>
-      {/* Engine Providers — live from OpenClaw Bridge (B069) */}
+      {/* Engine Providers — live from providers API */}
       <SectionTitle
         title="Engine Providers"
-        desc="Providers configured in OpenClaw. Managed via ~/.openclaw/openclaw.json."
+        desc="Providers configured for LLM access. Managed in Settings."
       />
       <EngineProviders />
 
       {/* Local API Keys — optional override stored in SuperClaw DB */}
       <SectionTitle
         title="Local API Keys"
-        desc="Optional overrides stored in SuperClaw. Leave empty to use OpenClaw's configured keys."
+        desc="API keys stored in SuperClaw database."
       />
       {PROVIDERS.map((p) => (
         <ProviderCard key={p.id} provider={p} />

@@ -39,12 +39,12 @@ export default function VaultTab() {
         // Common env vars
         for (const envKey of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GITHUB_TOKEN', 'GOOGLE_API_KEY', 'BRAVE_API_KEY']) {
           if (!creds.find(c => c.name === envKey)) {
-            creds.push({ name: envKey, masked: '(check OpenClaw config)', source: 'openclaw' });
+            creds.push({ name: envKey, masked: '(stored in server config)', source: 'openclaw' });
           }
         }
         setCredentials(creds);
       } else {
-        setError('Unable to connect to OpenClaw');
+        setError('Unable to load credentials');
       }
     } catch {
       setError('Server unavailable');
@@ -58,7 +58,7 @@ export default function VaultTab() {
     <div>
       <SectionTitle
         title="Vault" aria-label="Vault"
-        desc="Credentials managed by OpenClaw. Edit via OpenClaw config or environment variables."
+        desc="Credentials managed by server. Edit via environment variables."
       />
 
       {/* Status */}
@@ -73,7 +73,7 @@ export default function VaultTab() {
         <span style={{ fontSize: 20 }}>{error ? '⚠️' : '🔐'}</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: error ? 'var(--coral)' : 'var(--green)' }}>
-            {error ? 'Connection Issue' : 'Managed by OpenClaw'}
+            {error ? 'Connection Issue' : 'Managed Credentials'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
             {error ?? `${credentials.length} credential${credentials.length !== 1 ? 's' : ''} detected`}
@@ -108,7 +108,7 @@ export default function VaultTab() {
           }}>
             {credentials.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
-                No credentials detected. Configure them in your OpenClaw config.
+                No credentials detected. Set them via environment variables.
               </div>
             ) : (
               credentials.map((cred, i) => (
@@ -152,8 +152,8 @@ export default function VaultTab() {
             border: '1px solid var(--border)',
           }}>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              💡 Credentials are managed by OpenClaw&apos;s configuration system.
-              To add or modify credentials, edit your OpenClaw config file or set environment variables.
+              💡 Credentials are managed by the server&apos;s configuration system.
+              To add or modify credentials, set environment variables.
             </div>
           </div>
         </div>

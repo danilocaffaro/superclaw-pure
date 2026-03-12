@@ -324,7 +324,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const PROVIDER_CARDS = [
     { id: 'anthropic', name: 'Anthropic', icon: '🟣', desc: 'Claude Opus, Sonnet', hint: 'console.anthropic.com → API Keys' },
     { id: 'openai', name: 'OpenAI', icon: '🟢', desc: 'GPT-4o, o3', hint: 'platform.openai.com → API Keys' },
-    { id: 'github-copilot', name: 'GitHub Copilot', icon: '🐙', desc: 'Claude, GPT via Copilot', hint: 'Needs active Copilot subscription + OpenClaw on this machine' },
+    { id: 'github-copilot', name: 'GitHub Copilot', icon: '🐙', desc: 'Claude, GPT via Copilot', hint: 'Needs active Copilot subscription + GitHub CLI auth' },
     { id: 'google', name: 'Google AI', icon: '🔵', desc: 'Gemini 2.5 Pro', hint: 'aistudio.google.com → API Keys' },
     { id: 'ollama', name: 'Ollama', icon: '🦙', desc: 'Local models (free)', hint: 'ollama.com — run models locally' },
   ];
@@ -557,7 +557,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                     I already have an AI agent
                   </h3>
                   <p style={{ fontSize: 13, color: 'var(--text-muted, #8b949e)', marginTop: 6, marginBottom: 0, lineHeight: 1.5 }}>
-                    Connect an agent you already use — like OpenClaw, Claude, or any AI assistant.
+                    Connect an agent you already use — like Claude, GPT, or any AI assistant.
                   </p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
@@ -634,7 +634,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                                       role: `External Agent (${agentModel})`,
                                       systemPrompt: `You are ${agentName}, an external agent connected to SuperClaw.`,
                                       providerId: 'github-copilot',
-                                      modelId: agentModel.includes('opus') ? 'claude-opus-4.6' : 'claude-sonnet-4.6',
+                                      modelId: agentModel,
                                     }),
                                   });
                                   const agentJson = await agentRes.json() as { data?: { id: string } };
@@ -853,10 +853,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   ) : activeProvider === 'github-copilot' ? (
                     <div>
                       <p style={{ fontSize: 13, color: 'var(--text-muted, #8b949e)', marginTop: 0, marginBottom: 0, lineHeight: 1.6 }}>
-                        🐙 GitHub Copilot — no API key needed. SuperClaw uses the Copilot token from your GitHub CLI or OpenClaw installation.
+                        🐙 GitHub Copilot — no API key needed. SuperClaw uses the Copilot token from your GitHub CLI installation.
                       </p>
                       <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', marginTop: 8, marginBottom: 0 }}>
-                        💡 Requires: GitHub Copilot subscription + <code style={{ background: 'var(--surface-hover)', padding: '1px 5px', borderRadius: 3 }}>gh auth login</code> or OpenClaw running on this machine.
+                        💡 Requires: GitHub Copilot subscription + <code style={{ background: 'var(--surface-hover)', padding: '1px 5px', borderRadius: 3 }}>gh auth login</code> running on this machine.
                       </p>
                     </div>
                   ) : (

@@ -144,7 +144,7 @@ export function AgentCard({
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {agent.source === 'openclaw' && (
           <span style={{ fontSize: 10, color: 'var(--green)', padding: '2px 7px', borderRadius: 'var(--radius-sm)', background: 'color-mix(in srgb, var(--green) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--green) 20%, transparent)' }}>
-            🌐 {agent.gatewayId || 'OpenClaw'}
+            🌐 {agent.gatewayId || 'Local'}
           </span>
         )}
         {agent.source === 'superclaw' && (

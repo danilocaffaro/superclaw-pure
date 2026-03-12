@@ -1,48 +1,82 @@
-# ─── Stage 1: base ────────────────────────────────────────────────────────────
-FROM node:22-slim AS base
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# SuperClaw Pure — Multi-stage Docker build
+# Usage:
+#   docker build -t superclaw-pure .
+#   docker run -p 4070:4070 -v superclaw-data:/data superclaw-pure
+
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
+
 WORKDIR /app
 
-# ─── Stage 2: deps ────────────────────────────────────────────────────────────
-FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY apps/server/package.json apps/server/
-COPY apps/web/package.json apps/web/
-COPY packages/shared/package.json packages/shared/
-RUN pnpm install --frozen-lockfile
+# Copy package files
+COPY package.json package-lock.json* ./
+COPY apps/server/package.json ./apps/server/
+COPY apps/web/package.json ./apps/web/
 
-# ─── Stage 3: build ───────────────────────────────────────────────────────────
-FROM deps AS build
-COPY . .
-RUN pnpm run build
+# Install dependencies
+RUN npm ci --ignore-scripts
 
-# ─── Stage 4: production ──────────────────────────────────────────────────────
-FROM node:22-slim AS production
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Copy source
+COPY apps/server ./apps/server
+COPY apps/web ./apps/web
+
+# Build server
+WORKDIR /app/apps/server
+RUN npx tsc
+
+# Build frontend
+WORKDIR /app/apps/web
+ENV NEXT_OUTPUT=export
+RUN npx next build
+# SW stamp
+RUN node -e "const fs=require('fs');const ts=Date.now();const f='public/sw.js';if(fs.existsSync(f)){let c=fs.readFileSync(f,'utf8');c=c.replace(/v[0-9]+/,'v'+ts);fs.writeFileSync('out/sw.js',c);console.log('SW stamped',ts)}"
+
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM node:22-alpine AS runtime
+
 WORKDIR /app
 
-# Copy installed node_modules
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+# Security: non-root user
+RUN addgroup -S superclaw && adduser -S superclaw -G superclaw
 
 # Copy built artifacts
-COPY --from=build /app/apps/server/dist ./apps/server/dist
-COPY --from=build /app/apps/web/.next ./apps/web/.next
-COPY --from=build /app/apps/web/public ./apps/web/public
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
+COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/apps/web/out ./apps/web/out
 
-# Copy package manifests (needed by Node module resolution)
-COPY --from=build /app/apps/server/package.json ./apps/server/
-COPY --from=build /app/apps/web/package.json ./apps/web/
-COPY --from=build /app/packages/shared/package.json ./packages/shared/
-COPY --from=build /app/package.json ./
+# Copy root package for workspaces
+COPY package.json ./
 
+# Install production dependencies only
+COPY apps/server/package.json ./apps/server/
+WORKDIR /app/apps/server
+RUN npm install --omit=dev --ignore-scripts 2>/dev/null || true
+
+WORKDIR /app
+
+# Data volume for SQLite
+RUN mkdir -p /data && chown superclaw:superclaw /data
+VOLUME ["/data"]
+
+# Workspace for agents
+RUN mkdir -p /workspace && chown superclaw:superclaw /workspace
+VOLUME ["/workspace"]
+
+# Environment
 ENV NODE_ENV=production
-ENV SUPERCLAW_PORT=4070
-ENV NEXT_PORT=3000
+ENV PORT=4070
+ENV HOST=0.0.0.0
+ENV SUPERCLAW_DB_PATH=/data/superclaw.db
+ENV SUPERCLAW_WEB_DIR=/app/apps/web/out
+ENV SUPERCLAW_WORKSPACE=/workspace
 
-EXPOSE 4070 3000
+# Switch to non-root
+USER superclaw
 
-# Run API server and Next.js frontend concurrently
-CMD ["sh", "-c", "cd apps/server && node dist/index.js & cd apps/web && npx next start -p $NEXT_PORT & wait"]
+EXPOSE 4070
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:4070/api/health || exit 1
+
+CMD ["node", "apps/server/dist/index.js"]

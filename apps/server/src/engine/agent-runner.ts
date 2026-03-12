@@ -108,88 +108,7 @@ interface PendingToolCall {
 
 // ─── Cost estimation ─────────────────────────────────────────────────────────
 
-/** Very rough cost estimate (USD) — providers should ideally surface real pricing */
-function estimateCost(
-  providerId: string,
-  modelId: string,
-  tokensIn: number,
-  tokensOut: number,
-): number {
-  // Pricing per 1M tokens (USD) — updated 2026-03
-  const pricingMap: Record<string, { in: number; out: number }> = {
-    // Anthropic
-    'claude-opus-4-5': { in: 15.0, out: 75.0 },
-    'claude-opus-4': { in: 15.0, out: 75.0 },
-    'claude-sonnet-4-5': { in: 3.0, out: 15.0 },
-    'claude-sonnet-4': { in: 3.0, out: 15.0 },
-    'claude-3-5-sonnet': { in: 3.0, out: 15.0 },
-    'claude-3-5-sonnet-20241022': { in: 3.0, out: 15.0 },
-    'claude-3-5-haiku': { in: 0.8, out: 4.0 },
-    'claude-3-5-haiku-20241022': { in: 0.8, out: 4.0 },
-    'claude-haiku-4-5': { in: 0.8, out: 4.0 },
-    'claude-3-opus': { in: 15.0, out: 75.0 },
-    // OpenAI
-    'gpt-4o': { in: 2.5, out: 10.0 },
-    'gpt-4o-2024-11-20': { in: 2.5, out: 10.0 },
-    'gpt-4o-mini': { in: 0.15, out: 0.6 },
-    'gpt-4-turbo': { in: 10.0, out: 30.0 },
-    'gpt-4': { in: 30.0, out: 60.0 },
-    'gpt-3.5-turbo': { in: 0.5, out: 1.5 },
-    'o1': { in: 15.0, out: 60.0 },
-    'o1-mini': { in: 3.0, out: 12.0 },
-    'o1-pro': { in: 150.0, out: 600.0 },
-    'o3': { in: 10.0, out: 40.0 },
-    'o3-mini': { in: 1.1, out: 4.4 },
-    'o4-mini': { in: 1.1, out: 4.4 },
-    // Google
-    'gemini-2.5-pro': { in: 1.25, out: 10.0 },
-    'gemini-2.5-flash': { in: 0.15, out: 0.6 },
-    'gemini-2.0-flash': { in: 0.1, out: 0.4 },
-    'gemini-1.5-pro': { in: 1.25, out: 5.0 },
-    'gemini-1.5-flash': { in: 0.075, out: 0.3 },
-    // DeepSeek
-    'deepseek-chat': { in: 0.27, out: 1.1 },
-    'deepseek-reasoner': { in: 0.55, out: 2.19 },
-    // Groq
-    'llama-3.3-70b': { in: 0.59, out: 0.79 },
-    'llama-3.1-8b': { in: 0.05, out: 0.08 },
-    'mixtral-8x7b': { in: 0.24, out: 0.24 },
-    // Mistral
-    'mistral-large': { in: 2.0, out: 6.0 },
-    'mistral-small': { in: 0.2, out: 0.6 },
-    'codestral': { in: 0.3, out: 0.9 },
-  };
-
-  // Exact match first
-  let pricing = pricingMap[modelId];
-
-  // Fuzzy match: try partial/substring match
-  if (!pricing) {
-    const modelLower = modelId.toLowerCase();
-    for (const [key, val] of Object.entries(pricingMap)) {
-      if (modelLower.includes(key.toLowerCase()) || key.toLowerCase().includes(modelLower)) {
-        pricing = val;
-        break;
-      }
-    }
-  }
-
-  // Provider-level fallback
-  if (!pricing) {
-    const provLower = providerId.toLowerCase();
-    if (provLower.includes('anthropic') || provLower.includes('claude')) {
-      pricing = { in: 3.0, out: 15.0 }; // Sonnet as default
-    } else if (provLower.includes('openai') || provLower.includes('gpt')) {
-      pricing = { in: 2.5, out: 10.0 }; // GPT-4o as default
-    } else if (provLower.includes('google') || provLower.includes('gemini')) {
-      pricing = { in: 1.25, out: 10.0 }; // Gemini 2.5 Pro as default
-    }
-  }
-
-  if (!pricing) return 0;
-
-  return (tokensIn / 1_000_000) * pricing.in + (tokensOut / 1_000_000) * pricing.out;
-}
+import { estimateTokenCost } from '../config/pricing.js';
 
 // ─── Core agentic loop ────────────────────────────────────────────────────────
 
@@ -488,7 +407,7 @@ export async function* runAgent(
   } // end agentic loop
 
   // ── 8. Persist assistant message ─────────────────────────────────────────────
-  const cost = estimateCost(
+  const cost = estimateTokenCost(
     agentConfig.providerId,
     agentConfig.modelId,
     totalTokensIn,

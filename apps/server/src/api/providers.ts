@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ProviderRepository, ModelConfig } from '../db/providers.js';
+import { resolveProviderBaseUrl, PROVIDER_BASE_URLS } from '../config/defaults.js';
 
 // ============================================================
 // Minimal HTTP helper (no extra deps — uses Node fetch)
@@ -31,8 +32,9 @@ async function httpPost(
 
 async function testAnthropic(apiKey: string): Promise<{ connected: boolean; message?: string }> {
   try {
+    const url = resolveProviderBaseUrl('anthropic');
     const res = await httpPost(
-      'https://api.anthropic.com/v1/messages',
+      `${url}/v1/messages`,
       { model: 'claude-haiku-4-5', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] },
       { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     );
@@ -46,7 +48,7 @@ async function testAnthropic(apiKey: string): Promise<{ connected: boolean; mess
   }
 }
 
-async function testOpenAI(apiKey: string, baseUrl = 'https://api.openai.com'): Promise<{ connected: boolean; message?: string }> {
+async function testOpenAI(apiKey: string, baseUrl = PROVIDER_BASE_URLS.openai): Promise<{ connected: boolean; message?: string }> {
   try {
     const res = await httpGet(`${baseUrl}/v1/models`, { Authorization: `Bearer ${apiKey}` });
     if (res.ok) return { connected: true };
@@ -56,7 +58,7 @@ async function testOpenAI(apiKey: string, baseUrl = 'https://api.openai.com'): P
   }
 }
 
-async function testOllama(baseUrl = 'http://localhost:11434'): Promise<{ connected: boolean; message?: string }> {
+async function testOllama(baseUrl = PROVIDER_BASE_URLS.ollama): Promise<{ connected: boolean; message?: string }> {
   try {
     const res = await httpGet(`${baseUrl}/api/tags`);
     if (res.ok) return { connected: true };
@@ -205,7 +207,7 @@ export function registerProviderRoutes(app: FastifyInstance, repo: ProviderRepos
           break;
         }
         case 'ollama': {
-          result = await testOllama(provider.baseUrl ?? 'http://localhost:11434');
+          result = await testOllama(provider.baseUrl ?? PROVIDER_BASE_URLS.ollama);
           break;
         }
         case 'google': {

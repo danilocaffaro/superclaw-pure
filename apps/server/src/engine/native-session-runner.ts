@@ -7,6 +7,7 @@ import { streamChat, type ChatMessage, type ChatOptions } from './chat-engine.js
 import type { ProviderRepository } from '../db/providers.js';
 import type { AgentRepository } from '../db/index.js';
 import type Database from 'better-sqlite3';
+import { resolveProviderBaseUrl, resolveProviderType, providerNeedsApiKey, DEFAULT_TEMPERATURE, DEFAULT_MAX_TOKENS, DEFAULT_SYSTEM_PROMPT } from '../config/defaults.js';
 
 export interface SessionRunnerConfig {
   db: Database.Database;
@@ -26,24 +27,6 @@ interface ResolvedAgent {
   temperature: number;
   maxTokens: number;
 }
-
-// Provider type detection from base URL or explicit config
-const PROVIDER_TYPE_MAP: Record<string, 'openai' | 'anthropic'> = {
-  anthropic: 'anthropic',
-  openai: 'openai',
-  ollama: 'openai',        // Ollama uses OpenAI-compatible API
-  google: 'openai',        // Gemini via OpenAI-compatible endpoint
-  openrouter: 'openai',    // OpenRouter uses OpenAI format
-  'github-copilot': 'openai',
-};
-
-const PROVIDER_BASE_URLS: Record<string, string> = {
-  anthropic: 'https://api.anthropic.com',
-  openai: 'https://api.openai.com',
-  ollama: 'http://localhost:11434',
-  google: 'https://generativelanguage.googleapis.com/v1beta/openai',
-  openrouter: 'https://openrouter.ai/api',
-};
 
 /**
  * Resolve agent + provider config into streaming-ready options.
@@ -70,24 +53,24 @@ export function resolveAgent(
   const apiKey = unmasked?.rawApiKey || undefined;
 
   // Determine provider type and base URL
-  const providerType = PROVIDER_TYPE_MAP[provider.id] ?? 'openai';
-  const baseUrl = provider.baseUrl || PROVIDER_BASE_URLS[provider.id] || 'https://api.openai.com';
+  const providerType = resolveProviderType(provider.id, provider.type);
+  const baseUrl = resolveProviderBaseUrl(provider.id, provider.baseUrl);
 
-  // Determine model
+  // Determine model — use agent preference, then first provider model, then null (let provider decide)
   const firstModel = provider.models[0];
-  const model = agent.modelPreference || (typeof firstModel === 'string' ? firstModel : firstModel?.id) || 'gpt-4o';
+  const model = agent.modelPreference || (typeof firstModel === 'string' ? firstModel : firstModel?.id) || '';
 
   return {
     id: agent.id,
     name: agent.name,
     emoji: agent.emoji || '🤖',
-    systemPrompt: agent.systemPrompt || 'You are a helpful assistant.',
+    systemPrompt: agent.systemPrompt || DEFAULT_SYSTEM_PROMPT,
     model,
     providerType,
     baseUrl,
     apiKey,
-    temperature: agent.temperature ?? 0.7,
-    maxTokens: agent.maxTokens ?? 4096,
+    temperature: agent.temperature ?? DEFAULT_TEMPERATURE,
+    maxTokens: agent.maxTokens ?? DEFAULT_MAX_TOKENS,
   };
 }
 

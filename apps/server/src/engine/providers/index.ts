@@ -10,6 +10,7 @@ import { logger } from '../../lib/logger.js';
 import { streamChat } from '../chat-engine.js';
 import { initDatabase } from '../../db/index.js';
 import { ProviderRepository } from '../../db/providers.js';
+import { resolveProviderBaseUrl, resolveProviderType, providerNeedsApiKey } from '../../config/defaults.js';
 
 export interface LLMProvider {
   id: string;
@@ -90,13 +91,12 @@ export class ProviderRouter {
       const provConfig = providerRepo.getUnmasked(providerId);
       if (!provConfig) continue;
       // Ollama and local providers don't need API keys
-      const needsApiKey = !['ollama', 'local'].includes(provConfig.type ?? '');
-      if (needsApiKey && !provConfig.rawApiKey) continue;
+      if (providerNeedsApiKey(provConfig.type ?? '') && !provConfig.rawApiKey) continue;
 
       const firstModel = provConfig.models[0];
       const modelId = options.model ?? (typeof firstModel === 'object' ? firstModel.id : firstModel) ?? 'gpt-4o';
-      const providerType = (provConfig.type as 'openai' | 'anthropic') === 'anthropic' ? 'anthropic' : 'openai';
-      const baseUrl = provConfig.baseUrl ?? (providerType === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com');
+      const providerType = resolveProviderType(providerId, provConfig.type);
+      const baseUrl = resolveProviderBaseUrl(providerId, provConfig.baseUrl);
 
       const chatMessages: import('../chat-engine.js').ChatMessage[] = messages.map(m => ({
         role: (m.role === 'tool' ? 'assistant' : m.role) as 'user' | 'assistant' | 'system',

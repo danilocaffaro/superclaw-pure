@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { PROVIDER_BASE_URLS } from '../config/defaults.js';
 
 // ============================================================
 // Provider & Model Types
@@ -133,7 +134,7 @@ export const DEFAULT_PROVIDERS: Array<Omit<ProviderConfig, 'status'> & { base_ur
     name: 'Ollama (Local)',
     type: 'ollama',
     enabled: true,
-    baseUrl: 'http://localhost:11434',
+    baseUrl: PROVIDER_BASE_URLS.ollama,
     models: [
       {
         id: 'deepseek-r1:32b',

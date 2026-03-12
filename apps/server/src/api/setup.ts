@@ -4,6 +4,7 @@ import { AgentRepository } from '../db/agents.js';
 import { ProviderRepository as ProvRepo } from '../db/providers.js';
 import { initDatabase } from '../db/index.js';
 import { streamChat } from '../engine/chat-engine.js';
+import { resolveProviderBaseUrl, resolveProviderType, PROVIDER_BASE_URLS } from '../config/defaults.js';
 
 // ============================================================
 // Setup API — First-run wizard endpoints
@@ -29,7 +30,8 @@ async function testProviderConnection(
 ): Promise<{ success: boolean; error?: string; models?: string[] }> {
   try {
     if (providerId === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const url = resolveProviderBaseUrl('anthropic', baseUrl);
+      const res = await fetch(`${url}/v1/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,7 +52,8 @@ async function testProviderConnection(
     }
 
     if (providerId === 'openai') {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const url = resolveProviderBaseUrl('openai', baseUrl);
+      const res = await fetch(`${url}/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,7 +73,7 @@ async function testProviderConnection(
     }
 
     if (providerId === 'ollama') {
-      const url = baseUrl || 'http://localhost:11434';
+      const url = resolveProviderBaseUrl('ollama', baseUrl);
       const res = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return { success: false, error: `Ollama not reachable at ${url}` };
       return { success: true };
@@ -273,9 +276,9 @@ export function registerSetupRoutes(
     try {
       const chunks: string[] = [];
       const firstModel = provConfig.models[0];
-      const modelId = agent.modelPreference || (typeof firstModel === 'object' ? firstModel.id : firstModel) || 'gpt-4o';
-      const providerType = (provConfig.type as string) === 'anthropic' ? 'anthropic' : 'openai';
-      const baseUrl = provConfig.baseUrl ?? (providerType === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com');
+      const modelId = agent.modelPreference || (typeof firstModel === 'object' ? firstModel.id : firstModel) || '';
+      const providerType = resolveProviderType(providerId, provConfig.type);
+      const baseUrl = resolveProviderBaseUrl(providerId, provConfig.baseUrl);
 
       const msgs: import('../engine/chat-engine.js').ChatMessage[] = [];
       if (agent.systemPrompt) msgs.push({ role: 'system', content: agent.systemPrompt });

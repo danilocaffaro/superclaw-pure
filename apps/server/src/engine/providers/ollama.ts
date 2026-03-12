@@ -1,4 +1,5 @@
 import type { LLMProvider, LLMMessage, LLMOptions, StreamChunk } from './types.js';
+import { PROVIDER_BASE_URLS } from '../../config/defaults.js';
 
 export class OllamaProvider implements LLMProvider {
   readonly id = 'ollama';
@@ -9,14 +10,14 @@ export class OllamaProvider implements LLMProvider {
   private baseUrl: string;
 
   constructor(config: { baseUrl?: string; models?: string[] }) {
-    this.baseUrl = config.baseUrl || 'http://localhost:11434';
+    this.baseUrl = config.baseUrl || PROVIDER_BASE_URLS.ollama;
     this.models = config.models || [];
   }
 
   /**
    * Fetch available models from Ollama. Returns [] if Ollama is not running.
    */
-  static async discoverModels(baseUrl = 'http://localhost:11434'): Promise<string[]> {
+  static async discoverModels(baseUrl = PROVIDER_BASE_URLS.ollama): Promise<string[]> {
     try {
       const res = await fetch(`${baseUrl}/api/tags`, {
         signal: AbortSignal.timeout(5000),

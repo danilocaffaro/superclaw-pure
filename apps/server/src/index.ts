@@ -59,8 +59,10 @@ import { WorkflowEngine, seedBuiltinWorkflows } from './engine/workflow-engine.j
 import { getMessageBus } from './engine/message-bus.js';
 import { logger } from './lib/logger.js';
 
-const PORT = parseInt(process.env.PORT ?? process.env.SUPERCLAW_PORT ?? '4070', 10);
-const HOST = process.env.SUPERCLAW_HOST ?? '0.0.0.0';
+import { DEFAULT_PORT, DEFAULT_HOST, DEV_CORS_ORIGINS } from './config/defaults.js';
+
+const PORT = parseInt(process.env.PORT ?? process.env.SUPERCLAW_PORT ?? String(DEFAULT_PORT), 10);
+const HOST = process.env.SUPERCLAW_HOST ?? DEFAULT_HOST;
 const VERSION = '0.1.0';
 
 async function main() {
@@ -142,13 +144,11 @@ async function main() {
     },
   });
 
-  // CORS
+    // CORS
   const corsOrigins: (string | RegExp)[] = process.env.SUPERCLAW_CORS_ORIGINS
     ? process.env.SUPERCLAW_CORS_ORIGINS.split(',').map(s => s.trim())
     : [
-        'http://localhost:4080',
-        'http://localhost:3000',
-        'http://127.0.0.1:4080',
+        ...DEV_CORS_ORIGINS,
         /^https?:\/\/.*\.ts\.net$/,
       ];
   await app.register(cors, { origin: corsOrigins });

@@ -314,12 +314,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const PROVIDER_CARDS = [
     { id: 'anthropic', name: 'Anthropic', icon: '🟣', desc: 'Claude Opus, Sonnet', hint: 'console.anthropic.com → API Keys' },
     { id: 'openai', name: 'OpenAI', icon: '🟢', desc: 'GPT-4o, o3, o4-mini', hint: 'platform.openai.com → API Keys' },
-    { id: 'google', name: 'Google AI', icon: '🔵', desc: 'Gemini 2.5 Pro, Flash', hint: 'aistudio.google.com → API Keys' },
+    { id: 'google', name: 'Google AI', icon: '🔵', desc: 'Gemini 2.5 Pro, Flash', hint: 'aistudio.google.com → API Keys — free tier available' },
     { id: 'openrouter', name: 'OpenRouter', icon: '🔀', desc: '100+ models, one key', hint: 'openrouter.ai → Keys — access Claude, GPT, Gemini, Llama, and more' },
     { id: 'deepseek', name: 'DeepSeek', icon: '🐋', desc: 'DeepSeek V3, R1', hint: 'platform.deepseek.com → API Keys' },
     { id: 'groq', name: 'Groq', icon: '⚡', desc: 'Ultra-fast inference', hint: 'console.groq.com → API Keys — free tier available' },
     { id: 'mistral', name: 'Mistral', icon: '🇫🇷', desc: 'Mistral Large, Codestral', hint: 'console.mistral.ai → API Keys' },
-    { id: 'github-copilot', name: 'GitHub Copilot', icon: '🐙', desc: 'Claude, GPT via Copilot', hint: 'Needs active Copilot subscription + GitHub CLI auth' },
     { id: 'ollama', name: 'Ollama', icon: '🦙', desc: 'Local models (free)', hint: 'ollama.com — run models locally, no API key needed' },
     { id: 'custom', name: 'Other', icon: '🔧', desc: 'Any OpenAI-compatible API', hint: 'Works with Together AI, Fireworks, Azure, Perplexity, LM Studio, or any OpenAI-compatible endpoint' },
   ];
@@ -576,7 +575,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             {activeProvider && (
               <div style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {activeProvider !== 'ollama' && activeProvider !== 'github-copilot' && activeProvider !== 'custom' ? (
+                  {activeProvider !== 'ollama' && activeProvider !== 'custom' ? (
                     <div>
                       <label style={labelStyle}>API Key</label>
                       <input
@@ -633,16 +632,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                         💡 Any provider with an OpenAI-compatible API works — Together AI, Fireworks, Azure, Perplexity, LM Studio, vLLM, etc.
                       </p>
                     </div>
-                  ) : activeProvider === 'github-copilot' ? (
-                    <div>
-                      <p style={{ fontSize: 13, color: 'var(--text-muted, #8b949e)', marginTop: 0, marginBottom: 0, lineHeight: 1.6 }}>
-                        🐙 GitHub Copilot — no API key needed. SuperClaw uses the Copilot token from your GitHub CLI installation.
-                      </p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', marginTop: 8, marginBottom: 0 }}>
-                        💡 Requires: GitHub Copilot subscription + <code style={{ background: 'var(--surface-hover)', padding: '1px 5px', borderRadius: 3 }}>gh auth login</code> running on this machine.
-                      </p>
-                    </div>
-                  ) : (
+                  ) : activeProvider === 'ollama' ? (
                     <div>
                       <label style={labelStyle}>Base URL</label>
                       <input
@@ -656,15 +646,15 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                         💡 Install Ollama from ollama.com, then run: <code style={{ background: 'var(--surface-hover)', padding: '1px 5px', borderRadius: 3 }}>ollama pull llama3</code>
                       </p>
                     </div>
-                  )}
+                  ) : null}
 
                   <button
                     type="button"
                     onClick={() => void handleTestConnection()}
-                    disabled={testStatus === 'testing' || (activeProvider !== 'ollama' && activeProvider !== 'github-copilot' && !apiKeyInput)}
+                    disabled={testStatus === 'testing' || (activeProvider !== 'ollama' && !apiKeyInput && activeProvider !== 'custom')}
                     style={{
                       ...btnPrimary,
-                      opacity: testStatus === 'testing' || (activeProvider !== 'ollama' && activeProvider !== 'github-copilot' && !apiKeyInput) ? 0.4 : 1,
+                      opacity: testStatus === 'testing' || (activeProvider !== 'ollama' && !apiKeyInput && activeProvider !== 'custom') ? 0.4 : 1,
                       alignSelf: 'flex-start',
                     }}
                   >
@@ -799,7 +789,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                       style={inputStyle}
                     >
                       {providers
-                        .filter((p) => configuredProviders.has(p.id) || p.type === 'ollama' || p.type === 'github-copilot')
+                        .filter((p) => configuredProviders.has(p.id) || p.type === 'ollama')
                         .map((p) => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}

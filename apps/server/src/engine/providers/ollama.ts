@@ -31,7 +31,7 @@ export class OllamaProvider implements LLMProvider {
   }
 
   async *chat(messages: LLMMessage[], options: LLMOptions): AsyncGenerator<StreamChunk> {
-    const model = options.model || this.models[0] || 'llama3.1';
+    const model = options.model || this.models[0] || '';
 
     // Flatten LLMMessage content to string
     const flattenContent = (m: LLMMessage): string => {

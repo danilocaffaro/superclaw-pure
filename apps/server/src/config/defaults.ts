@@ -86,3 +86,19 @@ export const TOOL_LIMITS = {
   MAX_TOOL_ITERATIONS: 10,
   SMART_COMPACT_TOKENS: 80_000,
 };
+
+// ─── System Task Quality Floors ─────────────────────────────────────────────────
+// Minimum quality scores for internal system tasks.
+// See engine/smart-router.ts QUALITY_FLOORS for authoritative values.
+// These are documentation-only — the router owns the canonical values.
+
+export const SYSTEM_TASK_QUALITY_FLOORS = {
+  heartbeat: 20,
+  greeting: 30,
+  chat: 50,
+  compaction: 60,
+  extraction: 60,
+  embedding: 0,
+  tool_heavy: 75,
+  complex_reasoning: 80,
+} as const;

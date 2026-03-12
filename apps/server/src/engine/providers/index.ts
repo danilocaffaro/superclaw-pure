@@ -94,7 +94,7 @@ export class ProviderRouter {
       if (providerNeedsApiKey(provConfig.type ?? '') && !provConfig.rawApiKey) continue;
 
       const firstModel = provConfig.models[0];
-      const modelId = options.model ?? (typeof firstModel === 'object' ? firstModel.id : firstModel) ?? 'gpt-4o';
+      const modelId = options.model ?? (typeof firstModel === 'object' ? firstModel.id : firstModel) ?? '';
       const providerType = resolveProviderType(providerId, provConfig.type);
       const baseUrl = resolveProviderBaseUrl(providerId, provConfig.baseUrl);
 

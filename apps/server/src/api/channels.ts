@@ -75,6 +75,9 @@ export function initChannelSchema(db: Database.Database): void {
       raw TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE INDEX IF NOT EXISTS idx_channel_messages_channel ON channel_messages(channel_id);
+    CREATE INDEX IF NOT EXISTS idx_channel_messages_direction ON channel_messages(channel_id, direction);
   `);
 }
 

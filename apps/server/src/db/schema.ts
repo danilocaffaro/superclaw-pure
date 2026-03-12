@@ -354,6 +354,7 @@ export function initDatabase(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_wrs_run ON workflow_run_steps(run_id);
+    CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 
     CREATE TABLE IF NOT EXISTS squad_members (
       squad_id TEXT NOT NULL REFERENCES squads(id) ON DELETE CASCADE,

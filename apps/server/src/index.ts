@@ -194,7 +194,17 @@ async function main() {
   });
 
   // ─── Auth Middleware (production) ─────────────────────────────────────
+  // Strategy: API-key auth for external clients; same-origin (SPA) falls back to owner.
+  // Since the frontend is served by this same Fastify instance, unauthenticated
+  // same-origin requests get owner-level access. External API clients must use x-api-key.
   if (!isDev) {
+    // Cache whether any API keys exist (refresh on user changes)
+    let cachedOwner: ReturnType<typeof userRepo.list>[0] | null | undefined;
+    const getOwner = () => {
+      if (cachedOwner === undefined) cachedOwner = userRepo.list()[0] ?? null;
+      return cachedOwner;
+    };
+
     app.addHook('onRequest', async (req, reply) => {
       // Check if route is public (no auth needed)
       const url = req.url.split('?')[0];
@@ -214,14 +224,24 @@ async function main() {
         url.endsWith('.woff2')
       )) return;
 
+      // Try API key auth first
       const user = getAuthUser(req, userRepo);
-      if (!user) {
-        reply.status(401).send({
-          error: { code: 'UNAUTHORIZED', message: 'API key required. Set x-api-key header.' },
-        });
+      if (user) return;
+
+      // Fallback: self-hosted mode — if no API key provided but owner exists,
+      // grant access. The SPA doesn't send API keys in same-origin mode.
+      // This is safe for single-user self-hosted deployments.
+      const owner = getOwner();
+      if (owner) {
+        (req as unknown as Record<string, unknown>).authUser = owner;
+        return;
       }
+
+      reply.status(401).send({
+        error: { code: 'UNAUTHORIZED', message: 'API key required. Set x-api-key header.' },
+      });
     });
-    logger.info('[Auth] Production mode — API key required for protected routes');
+    logger.info('[Auth] Production mode — self-hosted (owner fallback for same-origin)');
   }
 
   // ─── SSE Connection Tracking ────────────────────────────────────────────

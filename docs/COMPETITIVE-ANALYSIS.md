@@ -1,6 +1,6 @@
 # SuperClaw Pure — Análise Competitiva Baseada no Código Real
 
-**Data:** 2026-03-12 | **Commit:** `42db0cd` | **Linhas de código:** ~34K (16K server + 17K frontend)
+**Data:** 2026-03-12 | **Commit:** `9f653dd` (updated post Sprint 62) | **Linhas de código:** ~36K (18K server + 17K frontend)
 
 ---
 
@@ -25,7 +25,7 @@
 | **Session Handoff** | ✅ Real | `engine/session-handoff.ts` | Agent-to-agent delegation |
 | **Turn Manager** | ✅ Real | `engine/turn-manager.ts` | Multi-agent conversation ordering |
 | **Message Bus** | ✅ Real | `engine/message-bus.ts` | Pub/sub for SSE events |
-| **Agent Memory** | ⚠️ Parcial | `db/agent-memory.ts` | 4 types (short/long/entity/preference), sem graph edges |
+| **Agent Memory** | ✅ Real | `db/agent-memory.ts` | 8 types (short/long/entity/preference/fact/decision/goal/event) + graph edges (6 relation types) + traversal |
 | **Public Chat** | ✅ Real | `api/public-chat.ts` | Guest SSE streaming, shared links |
 | **Kanban/Backlog** | ✅ Real | `api/backlog.ts` | CRUD completo, status flow |
 | **Marketplace** | ⚠️ Esqueleto | `api/marketplace.ts`, `db/marketplace.ts` | Schema + CRUD, sem store real |
@@ -63,9 +63,9 @@ Fonte: Reddit r/openclaw, r/ClaudeAI, GitHub issues, posts de heavy users (2025-
 | # | Dor do Usuário | Frequência | SuperClaw Pure | Competidores |
 |---|---------------|-----------|----------------|-------------|
 | **D1** | **Setup infernal** — "first 72h determine if you keep using" | ⭐⭐⭐⭐⭐ | ✅ **Setup Wizard 4 telas**, `npx superclaw`, <5min target | PicoClaw: `onboard` CLI ✅ / CoWork-OS: `npm i -g` ✅ / OpenClaw: JSON manual ❌ |
-| **D2** | **Context amnesia** — "starts getting senile at 200K tokens" | ⭐⭐⭐⭐⭐ | ⚠️ **Memory 4 tipos** mas sem graph edges/vector search ainda | Spacebot: typed graph 8 tipos ✅ / CoWork-OS: 6 subsystems ✅ / OpenClaw: MEMORY.md flat ❌ |
-| **D3** | **Agent loops** — repete mesma coisa 8x | ⭐⭐⭐⭐ | ⚠️ **Turn Manager** existe, mas sem loop detection explícito | Spacebot: message coalescing ✅ / Outros: ❌ |
-| **D4** | **Token burn** — heartbeats em modelo caro | ⭐⭐⭐⭐ | ⚠️ **Heartbeat com active hours** existe, mas sem smart routing tier automático ainda | Spacebot: 4-tier routing ✅ / Outros: ❌ |
+| **D2** | **Context amnesia** — "starts getting senile at 200K tokens" | ⭐⭐⭐⭐⭐ | ✅ **Memory 8 tipos + graph edges** (6 relation types: related_to, updates, contradicts, supports, caused_by, part_of) + traversal. Sem vector search ainda. | Spacebot: typed graph 8 tipos ✅ / CoWork-OS: 6 subsystems ✅ / OpenClaw: MEMORY.md flat ❌ |
+| **D3** | **Agent loops** — repete mesma coisa 8x | ⭐⭐⭐⭐ | ✅ **Loop Detector** — Jaccard similarity >0.85 + identical tool call detection (3x in 8-call window) | Spacebot: message coalescing ✅ / Outros: ❌ |
+| **D4** | **Token burn** — heartbeats em modelo caro | ⭐⭐⭐⭐ | ✅ **Smart Router 3-tier** — cheap (haiku/flash/mini) para heartbeats/cron, standard (default), premium (opus/sonnet/pro) para complex | Spacebot: 4-tier routing ✅ / Outros: ❌ |
 | **D5** | **"Fecha chat, esquece tudo"** | ⭐⭐⭐⭐ | ✅ **Sessions SQLite-persistent**, sobrevivem restart | CoWork-OS: ✅ / OpenClaw: ❌ (session-bound) / PicoClaw: ❌ |
 | **D6** | **Security / API key leaks** | ⭐⭐⭐⭐ | ✅ **AES-256-GCM vault**, cmd blocking, audit trail, sandbox | PicoClaw: workspace sandbox ✅ / CoWork-OS: 3200 tests ✅ / OpenClaw: JSON plaintext ❌ |
 | **D7** | **Code quality / "vibe-coded"** | ⭐⭐⭐ | ✅ **33K lines TypeScript**, config/defaults.ts, zero hardcoded URLs | Spacebot: Rust quality ✅ / Outros: varies |
@@ -97,7 +97,7 @@ Baseado no que os users realmente USAM (não features de marketing):
 | 7 | **MCP tools** | ⭐⭐⭐ | stdio + HTTP client | ✅ Completo |
 | 8 | **Background tasks** | ⭐⭐⭐ | Heartbeat + cron schedule | ⚠️ Parcial (sem job queue resiliente) |
 | 9 | **Multi-agent squads** | ⭐⭐⭐ | 4 estratégias, ARCHER routing | ✅ Completo |
-| 10 | **Memória estruturada** | ⭐⭐⭐ | 4 tipos, persistente | ⚠️ Parcial (sem vector/graph) |
+| 10 | **Memória estruturada** | ⭐⭐⭐ | 8 tipos + graph edges, persistente | ✅ Parity com Spacebot (sem vector search) |
 | 11 | **Compartilhar chat** | ⭐⭐ | Public chat via link | ✅ Completo |
 | 12 | **Kanban/task management** | ⭐⭐ | Kanban board, backlog API | ✅ Completo |
 | 13 | **Mobile access** | ⭐⭐ | PWA, stack navigation | ✅ Completo |
@@ -129,7 +129,7 @@ Baseado no que os users realmente USAM (não features de marketing):
 
 | Gap | Quem Faz Melhor | O Que Falta |
 |-----|-----------------|-------------|
-| **Typed memory graph** | Spacebot (8 tipos + edges) | Nosso memory = 4 tipos flat, sem RelatedTo/Updates/Contradicts edges |
+| **Typed memory graph** | Spacebot (8 tipos + edges) | ✅ **Parity** — 8 tipos + 6 relation types (related_to, updates, contradicts, supports, caused_by, part_of) + graph traversal. Sem vector search (roadmap v2). |
 | **Vector search** | Spacebot, CoWork-OS | `sqlite-vec` está no plano mas não implementado |
 | **Smart model routing** | Spacebot (4-tier) | Temos provider fallback, não temos task→tier auto |
 | **Circuit breaker** | Spacebot | Cron pode falhar sem auto-disable |
@@ -178,11 +178,11 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 
 | # | Gap | Impacto | Esforço | Prioridade |
 |---|-----|---------|---------|-----------|
-| 1 | **Smart routing (3-tier auto)** | Alto — resolve D4 (token burn) | Médio — config/defaults.ts + heurística | 🔴 Sprint 59 |
-| 2 | **Memory graph + vector** | Alto — resolve D2 (amnesia) | Alto — sqlite-vec + edge schema | 🔴 Sprint 60 |
-| 3 | **Loop detection** | Alto — resolve D3 (agent loops) | Baixo — counter + similarity check | 🔴 Sprint 59 |
-| 4 | **Usage dashboard visual** | Médio — resolve D9 gap | Médio — charts component | 🟡 Sprint 61 |
-| 5 | **Circuit breaker** | Médio — resolve D10 | Baixo — failure counter | 🟡 Sprint 59 |
+| 1 | **Smart routing (3-tier auto)** | Alto — resolve D4 (token burn) | Médio — config/defaults.ts + heurística | ✅ Sprint 59b |
+| 2 | **Memory graph + edges** | Alto — resolve D2 (amnesia) | Alto — 8 tipos + 6 relation types + traversal | ✅ Sprint 60 |
+| 3 | **Loop detection** | Alto — resolve D3 (agent loops) | Baixo — Jaccard similarity + tool call counter | ✅ Sprint 59b |
+| 4 | **Usage dashboard visual** | Médio — resolve D9 gap | Médio — 3-tab dashboard (Overview/Usage/Health) | ✅ Sprint 61 |
+| 5 | **Circuit breaker** | Médio — resolve D10 | Baixo — 3 failures → auto-disable | ✅ Sprint 59b |
 | 6 | **Message coalescing** | Médio — UX polish | Baixo — debounce + batch | 🟡 Sprint 60 |
 | 7 | **Job queue resiliente** | Médio — resolve D10 | Alto — BullMQ ou similar | 🟡 Sprint 62 |
 | 8 | **Channels (Telegram)** | Alto — mas web é primary | Alto — webhook + adapter | 🟡 Sprint 63+ |
@@ -199,9 +199,9 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 - ✅ ~100 rotas HTTP reais, 24 tabelas ativas, 15 tools, 63 componentes
 - ✅ Motor nativo streaming testado (boot test + GPT-4o-mini)
 
-**Gaps a priorizar:** smart routing (resolve token burn), memory graph (resolve amnesia), loop detection (resolve repetition)
+**Gaps resolvidos (Sprints 59–62):** smart routing ✅, memory graph ✅, loop detection ✅, circuit breaker ✅, test suite (87 tests) ✅, usage dashboard ✅. **Gaps restantes:** vector search (sqlite-vec), benchmarks de performance, deploy story (Docker), DOMPurify XSS.
 
-**Concorrente mais perigoso:** Spacebot (Rust, memory graph, 4-tier routing, circuit breaker) — mas é CLI+Discord, não web. CoWork-OS tem features mas é Electron-only.
+**Concorrente mais perigoso:** Spacebot (Rust, memory graph, 4-tier routing, circuit breaker) — mas é CLI+Discord, não web. CoWork-OS tem features mas é Electron-only. **SuperClaw agora tem parity com Spacebot em memory graph e smart routing.**
 
 **A verdade:** Nenhum concorrente tem tudo. SuperClaw Pure é o que mais se aproxima do "everything in one web app" que o mercado pede.
 
@@ -298,7 +298,7 @@ SuperClaw Pure é ideal pra isso: web UI para configurar, agent com tools (brows
 
 | # | Blind Spot | Severidade | Resposta |
 |---|-----------|-----------|----------|
-| 1 | **Zero testes automatizados** — CoWork-OS tem 3200+ | 🔴 Alto | Backlog: Sprint 62+ (test framework setup) |
+| 1 | **Test suite: 87 tests em 8 files** — CoWork-OS tem 3200+ mas Sprint 62 resolve o zero | ✅ Resolvido | Sprint 62: 87 tests (security, circuit-breaker, loop-detector, smart-router, memory, sessions, workflows, API contracts) |
 | 2 | **SQLite = single server only** | 🟡 Médio | Target = personal/small team. PostgreSQL no roadmap v2. SQLite handles 100+ concurrent reads fine. |
 | 3 | **Deploy story vago** | 🟡 Médio | Self-hosted via `npx superclaw`. Docker image planned. DeploysTab currently skeleton. |
 | 4 | **Sem observabilidade** | 🟡 Médio | Pino logger exists, OpenTelemetry no roadmap. Audit trail partial. |

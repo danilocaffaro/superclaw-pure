@@ -169,6 +169,10 @@ export const PUBLIC_ROUTES: string[] = [
   // SSE (auth checked at connection level if needed)
   '/sse',
   '/agents/status/stream',
+
+  // Dashboard (read-only, same-origin access)
+  '/routing/',
+  '/analytics/',
 ];
 
 /**

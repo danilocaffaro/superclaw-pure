@@ -17,7 +17,7 @@ import { CollapsedIconBar } from './CollapsedIconBar';
 import { ModeToggle } from './ModeToggle';
 import { AgentFormModal } from './modals/AgentFormModal';
 import { SquadFormModal } from './modals/SquadFormModal';
-import { InviteAgentModal } from '../settings/agents/InviteAgentModal';
+// InviteAgentModal removed — Pure uses local agent creation, not gateway pairing
 import { cleanAgentName } from '@/lib/agent-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
@@ -104,9 +104,6 @@ export default function Sidebar() {
 
   // Squad form modal state
   const [squadModalOpen, setSquadModalOpen] = useState(false);
-
-  // Invite modal state
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const openCreateAgent = () => {
     setEditingAgent(null);
@@ -248,8 +245,8 @@ export default function Sidebar() {
                 New Chat
               </button>
               <button
-                onClick={() => setInviteModalOpen(true)}
-                title="Invite external agent"
+                onClick={openCreateAgent}
+                title="Create new agent"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -274,7 +271,7 @@ export default function Sidebar() {
                   (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
                 }}
               >
-                🔗
+                ➕
               </button>
             </div>
           )}
@@ -425,12 +422,6 @@ export default function Sidebar() {
       {squadModalOpen && (
         <SquadFormModal
           onClose={() => setSquadModalOpen(false)}
-        />
-      )}
-      {inviteModalOpen && (
-        <InviteAgentModal
-          onClose={() => setInviteModalOpen(false)}
-          onConnected={() => { setInviteModalOpen(false); void fetchAgents(); }}
         />
       )}
     </>

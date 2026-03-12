@@ -18,6 +18,8 @@ export function AgentFormModal({ agent, onClose, onSaved }: AgentFormModalProps)
   const [name, setName] = useState(agent?.name ?? '');
   const [emoji, setEmoji] = useState(agent?.emoji ?? '🤖');
   const [role, setRole] = useState(agent?.role ?? '');
+  const [providerPreference, setProviderPreference] = useState(agent?.providerPreference ?? '');
+  const [modelPreference, setModelPreference] = useState(agent?.modelPreference ?? '');
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt ?? '');
   const [type, setType] = useState<'super' | 'specialist'>(agent?.type ?? 'specialist');
   const [saving, setSaving] = useState(false);
@@ -28,7 +30,11 @@ export function AgentFormModal({ agent, onClose, onSaved }: AgentFormModalProps)
     setSaving(true);
     setError('');
     try {
-      const payload: AgentCreateInput = { name: name.trim(), emoji, role: role.trim(), systemPrompt, type };
+      const payload: AgentCreateInput = {
+        name: name.trim(), emoji, role: role.trim(), systemPrompt, type,
+        providerPreference: providerPreference || undefined,
+        modelPreference: modelPreference || undefined,
+      };
       let saved: Agent;
       if (isEdit && agent) {
         saved = await updateAgent(agent.id, payload);
@@ -129,6 +135,26 @@ export function AgentFormModal({ agent, onClose, onSaved }: AgentFormModalProps)
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder="e.g. Backend Engineer, Researcher…"
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Provider</label>
+          <input
+            value={providerPreference}
+            onChange={(e) => setProviderPreference(e.target.value)}
+            placeholder="e.g. anthropic, openai, google, openrouter…"
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Model</label>
+          <input
+            value={modelPreference}
+            onChange={(e) => setModelPreference(e.target.value)}
+            placeholder="e.g. claude-sonnet-4, gpt-4o, gemini-2.5-pro…"
             style={inputStyle}
           />
         </div>

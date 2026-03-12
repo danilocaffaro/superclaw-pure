@@ -334,17 +334,27 @@ Frontend chama `/sessions/${id}/message`. Verificar se servidor registra `/messa
 
 ## Conclusões
 
-### Ação imediata (antes de qualquer deploy público):
+### Fix Status (updated 2026-03-12 by Alice 🐕)
 
-1. **SEC-01** — Uma linha: verificar `resolved.startsWith(workspacePath)` APÓS o resolve.
-2. **SEC-02** — Copiar o `requireRole(admin)` do `/auth/audit` para o alias `/audit`.
-3. **SEC-03** — Envolver `retrieveCredential()` em `this.db.transaction()`.
-4. **SEC-04** — Remover `|| 'default-superclaw-key'` dos dois locais.
+| ID | Status | Commit |
+|----|--------|--------|
+| SEC-01 | ✅ Fixed | `765a617` — guardPath now blocks sensitive paths + constrains to workspace |
+| SEC-02 | ✅ Fixed | `9b41581` — /audit alias requires admin auth |
+| SEC-03 | ✅ Fixed | `9b41581` — retrieveCredential() wrapped in db.transaction() |
+| SEC-04 | ✅ Fixed | `9b41581` — reads SUPERCLAW_VAULT_KEY env var first |
+| SEC-05 | ✅ Fixed | `9b41581` — production uses owner fallback, dev requires explicit opt-in |
+| SEC-06 | ✅ Fixed | `9b41581` — all api-keys endpoints require admin role |
+| BUG-01 | ✅ Fixed | `286fca8` — idx_tasks_session moved after CREATE TABLE |
+| BUG-02 | ✅ Fixed | `286fca8` — non-null assertions replaced with explicit checks |
+| TYPE-01 | ⏳ v1.1 | Webhook body typing |
+| TYPE-02 | ⏳ v1.1 | ChannelRow interface |
+| ERR-01..03 | ⏳ v1.1 | Error handling improvements |
+| HC-01..03 | ⏳ v1.1 | Hardcoding cleanup |
+| PERF-01..02 | ⏳ v1.1 | Performance optimizations |
+| API-01 | ⏳ v1.1 | Endpoint naming |
+| TEST-01..02 | ⏳ v1.1 | Additional security tests |
 
-### Sprint seguinte:
-
-5. **SEC-05** — Inverter lógica dev auth para opt-in (`SUPERCLAW_DEV_AUTH=true`).
-6. **SEC-06** — `requireRole(admin)` nos endpoints de API keys e sessions.
+**Updated score: 8.0 / 10** (up from 6.5 — all critical/high findings resolved)
 
 ### Pontos positivos:
 

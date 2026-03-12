@@ -20,8 +20,7 @@ export async function fetchHealth() {
   return apiFetch<{
     status: string;
     version: string;
-    engine: string;
-    engine: 'native' | 'bridge';
+    engine: 'native' | 'bridge' | string;
   }>('/healthz');
 }
 

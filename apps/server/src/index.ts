@@ -55,6 +55,7 @@ import { registerSetupRoutes } from './api/setup.js';
 import { registerPublicChatRoutes } from './api/public-chat.js';
 import { registerBacklogRoutes } from './api/backlog.js';
 import { registerRoutingRoutes } from './api/routing.js';
+import { registerAnalyticsRoutes } from './api/analytics.js';
 import { WorkflowRepository } from './db/workflow-repository.js';
 import { WorkflowEngine, seedBuiltinWorkflows } from './engine/workflow-engine.js';
 import { getMessageBus } from './engine/message-bus.js';
@@ -273,7 +274,7 @@ async function main() {
         '/datasets', '/presentation', '/marketplace', '/auth', '/finetune',
         '/workflows', '/workflow-runs', '/setup', '/debug', '/console',
         '/n8n', '/preview', '/audit', '/integrations', '/webhooks',
-        '/public', '/shared-links', '/backlog', '/routing'];
+        '/public', '/shared-links', '/backlog', '/routing', '/analytics'];
       if (apiPrefixes.some(p => req.url.startsWith(p))) return;
 
       if (req.url.startsWith('/_next/')) {
@@ -339,6 +340,7 @@ async function main() {
   registerPublicChatRoutes(app);
   registerBacklogRoutes(app);
   registerRoutingRoutes(app, providers);
+  registerAnalyticsRoutes(app, db);
 
   // ─── Start ────────────────────────────────────────────────────────────
   try {

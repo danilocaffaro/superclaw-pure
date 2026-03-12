@@ -2,7 +2,28 @@
 # "Total Recall" — The Best Context & Memory Solution on the Market
 
 **Author:** Alice 🐕 | **Date:** 2026-03-12 | **Status:** PROPOSED
-**Research:** MemGPT/Letta (OS-inspired tiers), Mem0 (graph + vector), CoALA framework (cognitive architecture), LangChain Memory Store, Spacebot (typed graph)
+**Research:** Gemini Search (grounded, w/ citations) + direct web_fetch
+
+### Sources (verified via Gemini Search with Google grounding)
+
+| # | Source | Type | Credibility | Key Insight |
+|---|--------|------|-------------|-------------|
+| 1 | **MemGPT paper** — arXiv:2310.08560 (Packer et al., UC Berkeley) | Academic Paper | ⭐⭐⭐⭐⭐ | OS-inspired hierarchical memory: core ↔ recall ↔ archival tiers |
+| 2 | **Mem0 paper** — arXiv:2504.19413 (Chhikara et al., YC-backed) | Academic Paper | ⭐⭐⭐⭐ | +26% accuracy vs OpenAI Memory, 91% less latency, 90% fewer tokens on LOCOMO |
+| 3 | **CoALA framework** — arXiv:2309.02427 (Sumers, Yao et al., Princeton/Stanford) | Academic Paper, TMLR | ⭐⭐⭐⭐⭐ | Cognitive architecture: procedural / semantic / episodic memory types |
+| 4 | **Zep / Graphiti** — getzep.com, neo4j.com integration | Product + Benchmark | ⭐⭐⭐⭐ | Temporal knowledge graph, bi-temporal model, DMR 94.8% vs MemGPT 93.4%, LongMemEval +18.5% accuracy |
+| 5 | **LangChain Memory Blog** — blog.langchain.com/memory-for-agents | Industry Blog | ⭐⭐⭐⭐ | Hot-path vs background extraction, LangGraph Memory Store namespaces |
+| 6 | **Letta (evolved MemGPT)** — letta.com, github.com/letta-ai/letta (~45K⭐) | Open Source | ⭐⭐⭐⭐⭐ | Memory blocks, agent-editable core memory, compaction, archival memory |
+| 7 | **Mem0 repo** — github.com/mem0ai/mem0 (~45K⭐, YC W24) | Open Source | ⭐⭐⭐⭐⭐ | Hybrid DB (vector+KV+graph), self-improving memory layer |
+| 8 | **MemoryAgentBench** — arXiv (2025) | Academic Benchmark | ⭐⭐⭐⭐ | 4 competencies: accurate retrieval, test-time learning, long-range understanding, conflict resolution |
+| 9 | **StructMemEval** — arXiv (2025) | Academic Benchmark | ⭐⭐⭐⭐ | Tests memory ORGANIZATION (ledgers, to-do lists), not just recall |
+| 10 | **BEAM** — arXiv (2025) | Academic Benchmark | ⭐⭐⭐⭐ | Extremely long coherent conversations: extraction, multi-hop, temporal reasoning |
+| 11 | **Evo-Memory** — arXiv (2025) | Academic Benchmark | ⭐⭐⭐⭐ | Streaming benchmark: retrieve, integrate, update knowledge over time |
+| 12 | **LOCOMO benchmark** | Academic Benchmark | ⭐⭐⭐⭐⭐ | Single-hop, multi-hop, temporal, open-domain — gold standard for conversational memory |
+| 13 | **Anthropic** — anthropic.com (context engineering) | Industry | ⭐⭐⭐⭐⭐ | "Context engineering" as discipline, proactive compaction |
+| 14 | **Microsoft** — microsoft.com (agent continuations) | Industry | ⭐⭐⭐⭐⭐ | Agent Continuations: serializable call stack for pause/resume/checkpoint |
+
+**Research method:** 4 Gemini Search queries with Google Search grounding (citations auto-verified), 6 direct web_fetch calls to arXiv, GitHub, and docs.
 
 ---
 
@@ -413,31 +434,98 @@ User sends message → Agent responds (streaming) → Response complete
 
 ---
 
-## 9. Why This Beats Every Competitor
+## 9. Research Insights (Gemini Search — March 2026)
 
-| Feature | Us (proposed) | Letta | Mem0 | ChatGPT | OpenClaw |
-|---------|--------------|-------|------|---------|----------|
-| Editable core memory blocks | ✅ | ✅ | ❌ | ❌ | ❌ |
-| LLM-based compaction | ✅ | ✅ | N/A | ✅ | ❌ |
-| Post-compaction task resumption | ✅ (L3) | ❌ | ❌ | ⚠️ partial | ❌ |
-| Graph memory with edges | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Full-text archival search | ✅ (FTS5) | ✅ | ❌ | ❌ | ❌ |
-| Background extraction | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Token budget management | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Mandatory recall before "idk" | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Contradiction detection | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Self-hosted / local | ✅ | ✅ | ⚠️ | ❌ | ✅ |
-| Zero external deps (no Redis/PG) | ✅ (SQLite) | ❌ (PG) | ❌ (Qdrant) | N/A | ✅ |
+### 9.1 New Competitors Discovered: Zep/Graphiti
 
-### Key Differentiators:
-1. **L3 Working Memory** — Nobody else saves task continuation state before compaction. This is our unique advantage.
-2. **Mandatory recall cascade** — Nobody else enforces "search before saying I don't know"
-3. **All SQLite** — Letta needs Postgres, Mem0 needs Qdrant/Chroma. We run on a single file.
-4. **Token budget system** — Explicit % allocation prevents memory from eating the context
+**Zep** (missed in initial research) is a significant competitor using a **temporal knowledge graph** (Graphiti engine) with:
+- **Bi-temporal model**: tracks event_time (when it happened) AND ingestion_time (when stored)
+- **3 subgraphs**: Episode (raw events) → Semantic Entity (extracted entities + embeddings) → Community (clusters + summaries)
+- **Hybrid search**: semantic embeddings + BM25 keyword + graph traversal — **zero LLM calls during retrieval**
+- **Benchmark**: DMR 94.8% (vs MemGPT 93.4%), LongMemEval +18.5% accuracy, -90% latency
+
+**Impact on our design:** We should add **temporal metadata** (event timestamps, validity intervals) to our L4 graph. We already have `created_at` but need `event_at` and `valid_until`.
+
+### 9.2 Benchmarks Landscape (2025-2026)
+
+7 major benchmarks now exist for agent memory:
+| Benchmark | Focus | Key Insight for Us |
+|-----------|-------|--------------------|
+| **LOCOMO** | Single-hop, multi-hop, temporal, open-domain | Gold standard. Mem0 wins (+26% vs OpenAI) |
+| **LongMemEval** | Enterprise scenarios, temporal reasoning | Zep wins (+18.5%). Complex temporal = hard |
+| **MemoryAgentBench** | Retrieval, learning, long-range, conflicts | Tests conflict resolution — we need contradiction detection |
+| **StructMemEval** | Memory ORGANIZATION (ledgers, to-dos) | Simple RAG fails. Structured memory matters |
+| **BEAM** | Extremely long conversations, multi-hop | Tests the exact scenario we're solving |
+| **DMR** | Context integration for conversations | Zep 94.8% vs MemGPT 93.4% |
+| **Evo-Memory** | Streaming: retrieve, integrate, update over time | Tests continuous learning — our background extraction |
+
+### 9.3 FTS5 vs Vector Search Verdict
+
+Gemini Search consensus from multiple sources:
+- **FTS5 alone is insufficient** for production agent memory — lacks semantic understanding
+- **Vector search alone misses keyword precision** — mathematical similarity ≠ contextual relevance
+- **Hybrid FTS5 + Vector = optimal** — FTS5 for fast keyword filtering, vector for semantic re-ranking
+- **However:** For v1.0, FTS5 gives us 80% of value at 0% external dependency cost
+- **sqlite-vec** (by Alex Garcia) is the SQLite-native vector extension — perfect for v1.1
+
+**Our plan is correct:** FTS5 now (Sprint 65), sqlite-vec later (v1.1).
+
+### 9.4 Post-Compaction Task Resumption (Validated)
+
+Research confirms our L3 Working Memory is a genuine innovation:
+- **MemGPT/Letta**: Has archival recall but no explicit task state save
+- **Zep**: Knowledge graph survives, but no "what was I doing" state
+- **Mem0**: Facts persist, but no task continuation
+- **Microsoft "Agent Continuations"**: Closest concept — serializes entire call stack (tools, goals, partial responses) as JSON for pause/resume. This validates our approach.
+- **Anthropic "Context Engineering"**: Recommends proactive compaction + structured note-taking into external scratchpad — exactly our L1 scratchpad + L3 working memory
+
+**Conclusion:** Our L3 Working Memory is validated by the direction Microsoft and Anthropic are heading, but neither ships it as a product feature yet.
+
+### 9.5 Revised Architecture Adjustments
+
+Based on research, 3 additions to our original design:
+
+1. **Add temporal metadata to L4** — `event_at DATETIME` (when the fact/event actually happened, not just when stored). Enables temporal reasoning ("what did we decide LAST WEEK?")
+
+2. **Add `valid_until` to memories** — Zep's bi-temporal model shows facts expire. Our `expires_at` already partially covers this, but we should make it explicit for facts (e.g., "current sprint is 65" becomes invalid when sprint 66 starts)
+
+3. **Plan for hybrid search in v1.1** — FTS5 pre-filter → sqlite-vec semantic re-rank. Architecture should be pluggable so adding vector search doesn't require schema changes
 
 ---
 
-## 10. Token Cost Analysis
+## 10. Why This Beats Every Competitor
+
+| Feature | Us (proposed) | Letta | Mem0 | Zep/Graphiti | ChatGPT | OpenClaw |
+|---------|--------------|-------|------|-------------|---------|----------|
+| Editable core memory blocks | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| LLM-based compaction | ✅ | ✅ | N/A | N/A | ✅ | ❌ |
+| Post-compaction task resumption | ✅ (L3) | ❌ | ❌ | ❌ | ⚠️ partial | ❌ |
+| Graph memory with edges | ✅ | ❌ | ✅ | ✅✅ (temporal KG) | ❌ | ❌ |
+| Temporal reasoning (bi-temporal) | ⚠️ v1.1 | ❌ | ❌ | ✅ (event+ingest time) | ❌ | ❌ |
+| Full-text archival search | ✅ (FTS5) | ✅ | ❌ | ✅ (BM25) | ❌ | ❌ |
+| Vector/semantic search | ⚠️ v1.1 | ✅ | ✅ | ✅ (hybrid) | ❌ | ❌ |
+| Background extraction | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Token budget management | ✅ | ✅ | ✅ | N/A (API) | ✅ | ❌ |
+| Mandatory recall before "idk" | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Contradiction detection | ✅ | ❌ | ✅ | ✅ (temporal) | ❌ | ❌ |
+| Self-hosted / local | ✅ | ✅ | ⚠️ | ❌ (Neo4j) | ❌ | ✅ |
+| Zero external deps (no Redis/PG) | ✅ (SQLite) | ❌ (PG) | ❌ (Qdrant) | ❌ (Neo4j) | N/A | ✅ |
+
+### Key Differentiators:
+1. **L3 Working Memory** — Nobody else saves task continuation state before compaction. Validated by Microsoft's Agent Continuations concept but not shipped by anyone yet.
+2. **Mandatory recall cascade** — Nobody else enforces "search before saying I don't know"
+3. **All SQLite** — Letta needs Postgres, Mem0 needs Qdrant/Chroma, Zep needs Neo4j. We run on a single file.
+4. **Token budget system** — Explicit % allocation prevents memory from eating the context
+5. **Temporal metadata (v1.1)** — Following Zep/Graphiti's bi-temporal model for temporal reasoning
+
+### Honest Gaps (vs Zep/Graphiti):
+- **No vector search in v1** — FTS5 only (adding sqlite-vec in v1.1)
+- **No bi-temporal model in v1** — Basic timestamps (adding event_at/valid_until in v1.1)
+- **No community/cluster subgraph** — Zep auto-clusters related entities. We do manual edges.
+
+---
+
+## 11. Token Cost Analysis
 
 | Operation | Model Tier | Tokens | Cost (USD) | Frequency |
 |-----------|-----------|--------|-----------|-----------|
@@ -451,7 +539,7 @@ User sends message → Agent responds (streaming) → Response complete
 
 ---
 
-## 11. Migration from Current State
+## 13. Migration from Current State
 
 What we have → What we need:
 

@@ -3,9 +3,24 @@
 import React, { type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import DOMPurify from 'dompurify';
 import { CodeBlock } from './CodeBlock';
 
 // ─── Markdown Renderer ─────────────────────────────────────────────────────────
+
+/**
+ * Sanitize content before rendering. Defense-in-depth:
+ * ReactMarkdown already strips raw HTML, but DOMPurify catches edge cases.
+ * We strip dangerous HTML tags/attrs but preserve markdown-safe content.
+ */
+function sanitize(content: string): string {
+  // Strip script/iframe/object tags and event handlers, keep text + basic formatting
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: [],     // No HTML tags pass through (markdown handles formatting)
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,   // Keep text content of stripped tags
+  });
+}
 
 /**
  * Pre-process content to convert file:// references to renderable URLs.
@@ -138,7 +153,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
         hr: () => <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />,
       }}
     >
-      {preprocessFileRefs(content)}
+      {sanitize(preprocessFileRefs(content))}
     </ReactMarkdown>
   );
 }

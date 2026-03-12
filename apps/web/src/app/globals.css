@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+/* Import Inter + JetBrains Mono */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Electron traffic lights are positioned at y=50 in main.ts so they sit
+     below the sidebar header row — no padding adjustment needed here. */
+  --electron-titlebar-height: 0px;
+  
+  /* Core palette from demo HTML */
+  --bg: #0D1117;
+  --surface: #161B22;
+  --surface-hover: #1C2128;
+  --border: #30363D;
+  --border-hover: #484F58;
+
+  /* Text */
+  --text: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-muted: #484F58;
+
+  /* Accent colors */
+  --coral: #FF6B6B;
+  --coral-hover: #FF5252;
+  --coral-subtle: rgba(255,107,107,0.15);
+  --blue: #58A6FF;
+  --blue-subtle: rgba(88,166,255,0.15);
+  --purple: #BC8CFF;
+  --purple-subtle: rgba(188,140,255,0.15);
+  --green: #3FB950;
+  --green-subtle: rgba(63,185,80,0.15);
+  --yellow: #D29922;
+  --yellow-subtle: rgba(210,153,34,0.15);
+  --red: #F85149;
+
+  /* On-accent text (buttons, badges on colored backgrounds) */
+  --text-on-accent: #FFFFFF;
+
+  /* Components */
+  --card-bg: rgba(22,27,34,0.8);
+  --card-border: var(--border);
+  --input-bg: rgba(22,27,34,0.6);
+  --badge-bg: rgba(110,118,129,0.2);
+
+  /* Glass effect */
+  --glass-bg: rgba(13,17,23,0.85);
+  --glass-border: rgba(48,54,61,0.8);
+
+  /* Code */
+  --code-bg: #0D1117;
+  --code-text: #E6EDF3;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Spacing */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Legacy aliases — keep so any remaining old refs still resolve */
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--surface);
+  --bg-card: var(--card-bg);
+  --border-subtle: var(--border);
+  --accent: var(--coral);
+  --accent-hover: var(--coral-hover);
+  --text-primary: var(--text);
+  --success: var(--green);
+  --warning: var(--yellow);
+  --error: var(--red);
+}
+
+/* ── Light Theme ──────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg: #FFFFFF;
+  --surface: #F6F8FA;
+  --surface-hover: #EEF1F5;
+  --border: #D0D7DE;
+  --border-hover: #B0B8C1;
+
+  /* Text */
+  --text: #1F2328;
+  --text-secondary: #656D76;
+  --text-muted: #8C959F;
+
+  /* Accent colors — adjusted for light backgrounds (GitHub Light palette) */
+  --coral: #E5534B;
+  --coral-hover: #C93C35;
+  --coral-subtle: rgba(229,83,75,0.1);
+  --blue: #0969DA;
+  --blue-subtle: rgba(9,105,218,0.1);
+  --purple: #8250DF;
+  --purple-subtle: rgba(130,80,223,0.1);
+  --green: #1A7F37;
+  --green-subtle: rgba(26,127,55,0.1);
+  --yellow: #9A6700;
+  --yellow-subtle: rgba(154,103,0,0.1);
+  --red: #CF222E;
+
+  /* On-accent text (buttons, badges on colored backgrounds) */
+  --text-on-accent: #FFFFFF;
+
+  /* Components */
+  --card-bg: rgba(246,248,250,0.9);
+  --card-border: var(--border);
+  --input-bg: rgba(255,255,255,0.9);
+  --badge-bg: rgba(175,184,193,0.2);
+
+  /* Glass effect */
+  --glass-bg: rgba(255,255,255,0.85);
+  --glass-border: rgba(208,215,222,0.8);
+
+  /* Code */
+  --code-bg: #F6F8FA;
+  --code-text: #1F2328;
+
+  color-scheme: light;
+}
+
+/* ── System preference: light ─────────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --bg: #FFFFFF;
+    --surface: #F6F8FA;
+    --surface-hover: #EEF1F5;
+    --border: #D0D7DE;
+    --border-hover: #B0B8C1;
+
+    --text: #1F2328;
+    --text-secondary: #656D76;
+    --text-muted: #8C959F;
+
+    --coral: #E5534B;
+    --coral-hover: #C93C35;
+    --coral-subtle: rgba(229,83,75,0.1);
+    --blue: #0969DA;
+    --blue-subtle: rgba(9,105,218,0.1);
+    --purple: #8250DF;
+    --purple-subtle: rgba(130,80,223,0.1);
+    --green: #1A7F37;
+    --green-subtle: rgba(26,127,55,0.1);
+    --yellow: #9A6700;
+    --yellow-subtle: rgba(154,103,0,0.1);
+    --red: #CF222E;
+
+    --text-on-accent: #FFFFFF;
+
+    --card-bg: rgba(246,248,250,0.9);
+    --card-border: var(--border);
+    --input-bg: rgba(255,255,255,0.9);
+    --badge-bg: rgba(175,184,193,0.2);
+
+    --glass-bg: rgba(255,255,255,0.85);
+    --glass-border: rgba(208,215,222,0.8);
+
+    --code-bg: #F6F8FA;
+    --code-text: #1F2328;
+
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* Selection */
+::selection {
+  background: var(--coral-subtle);
+  color: var(--text);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+/* ── Mobile: safe area insets (iPhone notch / Dynamic Island) ── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .mobile-input-safe {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ── Prevent rubber-band scroll on iOS ── */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* ── Hide scrollbar on mobile chip row ── */
+.mobile-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Special Card Animations ──────────────────────────────────────────────── */
+
+@keyframes debate-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+.debate-pulse-dot {
+  animation: debate-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes workflow-ring-pulse {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.workflow-pulse-ring {
+  animation: workflow-ring-pulse 1.4s ease-out infinite;
+}
+
+/* ─── PWA Standalone Mode ──────────────────────────────────────────────────── */
+
+/* Safe area insets for notch / Dynamic Island devices */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Prevent pull-to-refresh in standalone */
+  html {
+    overscroll-behavior: none;
+  }
+}
+
+/* Electron window drag regions */
+.electron-drag { -webkit-app-region: drag; }
+.electron-no-drag { -webkit-app-region: no-drag; }

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  superclaw:
+    build: .
+    ports:
+      - "4070:4070"  # API server
+      - "3000:3000"  # Web frontend
+    volumes:
+      - superclaw-data:/root/.superclaw
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+
+volumes:
+  superclaw-data:

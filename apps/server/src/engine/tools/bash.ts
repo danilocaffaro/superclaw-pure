@@ -1,0 +1,82 @@
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import type { Tool, ToolInput, ToolOutput, ToolDefinition } from './types.js';
+
+const execFileAsync = promisify(execFile);
+
+const MAX_OUTPUT = 50_000; // chars
+const DEFAULT_TIMEOUT = 30_000; // ms
+
+const BLOCKED_PATTERNS = [
+  /\brm\s+-rf\s+\/(?!\w)/,  // rm -rf / (root)
+  /\bmkfs\b/,                // format filesystem
+  /\bdd\s+.*of=\/dev/,       // dd to device
+  /:(){ :|:& };:/,           // fork bomb
+  /\bshutdown\b/,            // shutdown
+  /\breboot\b/,              // reboot
+];
+
+export class BashTool implements Tool {
+  readonly definition: ToolDefinition = {
+    name: 'bash',
+    description: 'Run a shell command and return its output. Use for file operations, running scripts, installing packages, etc.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'The shell command to run' },
+        timeout: { type: 'number', description: 'Timeout in milliseconds (default 30000, max 120000)' },
+        cwd: { type: 'string', description: 'Working directory for the command' },
+      },
+      required: ['command'],
+    },
+  };
+
+  async execute(input: ToolInput): Promise<ToolOutput> {
+    const command = input['command'] as string;
+    const timeout = Math.min((input['timeout'] as number) ?? DEFAULT_TIMEOUT, 120_000);
+    const cwd = (input['cwd'] as string) ?? process.cwd();
+
+    if (!command || typeof command !== 'string') {
+      return { success: false, error: 'command must be a non-empty string' };
+    }
+
+    // Safety: block dangerous commands
+    for (const pattern of BLOCKED_PATTERNS) {
+      if (pattern.test(command)) {
+        return { success: false, error: 'Command blocked by safety policy' };
+      }
+    }
+
+    try {
+      const { stdout, stderr } = await execFileAsync('bash', ['-c', command], {
+        timeout,
+        cwd,
+        env: { ...process.env },
+        maxBuffer: MAX_OUTPUT * 4,
+      });
+
+      let output = '';
+      if (stdout) output += stdout;
+      if (stderr) output += stderr ? `\n[stderr]\n${stderr}` : '';
+
+      // Truncate if too long
+      if (output.length > MAX_OUTPUT) {
+        output = output.slice(0, MAX_OUTPUT) + `\n[output truncated at ${MAX_OUTPUT} chars]`;
+      }
+
+      return { success: true, result: output.trim() };
+    } catch (err: unknown) {
+      const error = err as Error & { stdout?: string; stderr?: string; code?: number; killed?: boolean };
+
+      if (error.killed) {
+        return { success: false, error: `Command timed out after ${timeout}ms` };
+      }
+
+      let msg = error.message ?? 'Command failed';
+      if (error.stdout) msg += `\n[stdout]\n${error.stdout.slice(0, 5000)}`;
+      if (error.stderr) msg += `\n[stderr]\n${error.stderr.slice(0, 5000)}`;
+
+      return { success: false, error: msg };
+    }
+  }
+}

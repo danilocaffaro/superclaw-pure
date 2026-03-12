@@ -1,0 +1,438 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useUIStore } from '@/stores/ui-store';
+import { useSessionStore } from '@/stores/session-store';
+import { useAgentStore } from '@/stores/agent-store';
+import { useSquadStore } from '@/stores/squad-store';
+import type { Agent } from '@/stores/agent-store';
+import ModelSelector from '@/components/ModelSelector';
+
+import { SectionHeader } from './SectionHeader';
+import { SessionItem } from './SessionItem';
+import type { SessionUsage } from './SessionItem';
+import { AgentTreeItem } from './AgentTreeItem';
+import { SquadItem } from './SquadItem';
+import { CollapsedIconBar } from './CollapsedIconBar';
+import { ModeToggle } from './ModeToggle';
+import { AgentFormModal } from './modals/AgentFormModal';
+import { SquadFormModal } from './modals/SquadFormModal';
+import { InviteAgentModal } from '../settings/agents/InviteAgentModal';
+import { cleanAgentName } from '@/lib/agent-utils';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
+export default function Sidebar() {
+  const { sidebarCollapsed, toggleSidebar, interfaceMode } = useUIStore();
+  const sessions = useSessionStore((s) => s.sessions);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const createSession = useSessionStore((s) => s.createSession);
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetchAgents);
+  const squads = useSquadStore((s) => s.squads);
+
+  // Ensure agents are loaded
+  useEffect(() => {
+    if (agents.length === 0) {
+      void fetchAgents();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Section collapse states
+  const [chatsCollapsed, setChatsCollapsed] = useState(false);
+  const [squadsCollapsed, setSquadsCollapsed] = useState(false);
+
+  // ── Clean agents for display (apply name rules once) ──────────────────────
+  const displayAgents = useMemo(() => {
+    return agents.map((a) => ({
+      ...a,
+      name: cleanAgentName(a.id, a.name || ''),
+    }));
+  }, [agents]);
+
+  // ── Session grouping ─────────────────────────────────────────────────────
+  const { sessionsByAgent } = useMemo(() => {
+    const byAgent = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      const key = s.agent_id || '__orphan__';
+      const list = byAgent.get(key) || [];
+      list.push(s);
+      byAgent.set(key, list);
+    }
+    return { sessionsByAgent: byAgent };
+  }, [sessions, agents]);
+
+  // ── Task 7: Usage fetch — stable dep key (session IDs hash) ─────────────
+  const [usageMap, setUsageMap] = useState<Record<string, SessionUsage>>({});
+  const sessionIdsKey = useMemo(
+    () => sessions.slice(0, 10).map((s) => s.id).join(','),
+    [sessions]
+  );
+
+  useEffect(() => {
+    if (!sessionIdsKey) return;
+    const visible = sessions.slice(0, 10);
+    let cancelled = false;
+
+    void Promise.allSettled(
+      visible.map((s) =>
+        fetch(`${API_BASE}/sessions/${encodeURIComponent(s.id)}/usage`)
+          .then((r) => {
+            // Skip if endpoint doesn't exist
+            if (!r.ok) return null;
+            return r.json() as Promise<{ data?: { totalTokens?: number; totalCost?: number } }>;
+          })
+          .then((d) => {
+            if (cancelled || !d?.data) return;
+            const usage: SessionUsage = {
+              tokens: d.data.totalTokens ?? 0,
+              cost: d.data.totalCost ?? 0,
+            };
+            if (usage.tokens > 0) {
+              setUsageMap((prev) => ({ ...prev, [s.id]: usage }));
+            }
+          })
+          .catch(() => {})
+      )
+    );
+    return () => { cancelled = true; };
+  }, [sessionIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Agent form modal state
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+
+  // Squad form modal state
+  const [squadModalOpen, setSquadModalOpen] = useState(false);
+
+  // Invite modal state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+
+  const openCreateAgent = () => {
+    setEditingAgent(null);
+    setAgentModalOpen(true);
+  };
+
+  const openEditAgent = (agent: Agent) => {
+    setEditingAgent(agent);
+    setAgentModalOpen(true);
+  };
+
+  const closeAgentModal = () => {
+    setAgentModalOpen(false);
+    setEditingAgent(null);
+  };
+
+  // Track which agent trees are expanded (default: all expanded)
+  const [expandedAgents, setExpandedAgents] = useState<Record<string, boolean>>({});
+  const isAgentExpanded = (id: string) => expandedAgents[id] !== false; // default open
+  const toggleAgentExpand = (id: string) =>
+    setExpandedAgents((prev) => ({ ...prev, [id]: !isAgentExpanded(id) }));
+
+  return (
+    <>
+      <aside
+        style={{
+          width: sidebarCollapsed ? 56 : 268,
+          minWidth: sidebarCollapsed ? 56 : 268,
+          background: 'var(--surface)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: 'width 250ms cubic-bezier(0.4,0,0.2,1), min-width 250ms cubic-bezier(0.4,0,0.2,1)',
+          height: '100vh',
+          position: 'relative',
+          zIndex: 20,
+        }}
+      >
+        {/* ── Header ─────────────────────────────────────────── */}
+        <div
+          className="electron-drag"
+          style={{
+            padding: sidebarCollapsed ? '12px 0 16px' : '12px 12px 16px',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
+          {/* Top row: logo + collapse btn */}
+          <div
+            className="electron-no-drag"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: sidebarCollapsed ? 8 : 8,
+              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+            }}
+          >
+            {/* Logo */}
+            {!sidebarCollapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 16 }} className="claw">⚡</span>
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, var(--coral), #ff8f8f)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  SuperClaw
+                </span>
+              </div>
+            )}
+
+            {/* Collapse / hamburger button */}
+            <button
+              onClick={toggleSidebar}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+                color: 'var(--text-secondary)',
+                transition: 'all 150ms',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
+              }}
+            >
+              ☰
+            </button>
+          </div>
+
+          {/* New Chat + Invite row */}
+          {!sidebarCollapsed && (
+            <div style={{ display: 'flex', gap: 6, margin: '3px 0' }}>
+              <button
+                onClick={() => createSession()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flex: 1,
+                  padding: '7px 12px',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--text)',
+                  transition: 'all 150ms',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--coral)';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--coral-subtle)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
+                }}
+              >
+                <span style={{ fontSize: 16, lineHeight: 1, color: 'var(--text-secondary)' }}>✎</span>
+                New Chat
+              </button>
+              <button
+                onClick={() => setInviteModalOpen(true)}
+                title="Invite external agent"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 36,
+                  padding: '7px 0',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 15,
+                  color: 'var(--blue, #58A6FF)',
+                  transition: 'all 150ms',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--blue, #58A6FF)';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--blue, #58A6FF) 8%, transparent)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)';
+                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
+                }}
+              >
+                🔗
+              </button>
+            </div>
+          )}
+
+          {/* Search bar */}
+          {!sidebarCollapsed && (
+            <div style={{ margin: '6px 0 4px', position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                🔍
+              </span>
+              <div
+                style={{
+                  width: '100%',
+                  padding: '5px 10px 5px 26px',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 12,
+                  color: 'var(--text-muted)',
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                }}
+                onClick={() => useUIStore.getState().toggleCommandPalette()}
+              >
+                Search or ⌘K…
+              </div>
+            </div>
+          )}
+
+          {/* Label: CHATS */}
+          {!sidebarCollapsed && (
+            <div style={{
+              margin: '6px -12px 0',
+              padding: '4px 16px 2px',
+              fontSize: 10,
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.8px',
+            }}>
+              Chats
+            </div>
+          )}
+        </div>
+
+        {/* ── Scrollable Content ─────────────────────────────── */}
+        {sidebarCollapsed ? (
+          <CollapsedIconBar />
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: '6px 0',
+            }}
+          >
+            {/* ── No agents at all ── */}
+            {displayAgents.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  color: 'var(--text-secondary)',
+                  fontSize: 12,
+                  padding: '20px 16px',
+                }}
+              >
+                <div style={{ fontSize: 26, marginBottom: 8 }}>🤖</div>
+                <div>No agents configured</div>
+                <div style={{ marginTop: 4, opacity: 0.7 }}>Complete setup to add agents</div>
+              </div>
+            ) : (
+              <>
+                {/* ── DM Chats: Every agent is a contact ── */}
+                {!chatsCollapsed && displayAgents.map((agent) => {
+                  const agentSessions = sessionsByAgent.get(agent.id) ?? [];
+                  return (
+                    <AgentTreeItem
+                      key={agent.id}
+                      agent={agent}
+                      sessions={agentSessions}
+                      expanded={isAgentExpanded(agent.id)}
+                      onToggle={() => toggleAgentExpand(agent.id)}
+                      onEdit={openEditAgent}
+                      activeSessionId={activeSessionId ?? ''}
+                      usageMap={usageMap}
+                    />
+                  );
+                })}
+              </>
+            )}
+
+            {/* ── Squads (group chats) ── */}
+            {squads.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Squads" aria-label="Squads"
+                  count={squads.length}
+                  collapsed={squadsCollapsed}
+                  onToggle={() => setSquadsCollapsed((v) => !v)}
+                  onAdd={() => setSquadModalOpen(true)}
+                />
+                {!squadsCollapsed &&
+                  squads.map((sq) => (
+                    <SquadItem key={sq.id} squad={sq} agents={displayAgents} />
+                  ))
+                }
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Footer: Model Selector ────────────────────────── */}
+        {!sidebarCollapsed && (
+          <div
+            style={{
+              padding: '8px 14px',
+              borderTop: '1px solid var(--border)',
+              flexShrink: 0,
+            }}
+          >
+            <ModelSelector />
+          </div>
+        )}
+
+        {/* ── Footer: Mode Toggle ───────────────────────────── */}
+        {!sidebarCollapsed && <ModeToggle />}
+      </aside>
+
+      {/* ── Modals (rendered outside aside to avoid z-index issues) ── */}
+      {agentModalOpen && (
+        <AgentFormModal
+          agent={editingAgent}
+          onClose={closeAgentModal}
+        />
+      )}
+      {squadModalOpen && (
+        <SquadFormModal
+          onClose={() => setSquadModalOpen(false)}
+        />
+      )}
+      {inviteModalOpen && (
+        <InviteAgentModal
+          onClose={() => setInviteModalOpen(false)}
+          onConnected={() => { setInviteModalOpen(false); void fetchAgents(); }}
+        />
+      )}
+    </>
+  );
+}

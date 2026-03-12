@@ -1,0 +1,58 @@
+{
+  "name": "@superclaw/desktop",
+  "version": "0.2.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc && electron dist/main.js",
+    "build": "tsc",
+    "package": "tsc && electron-builder",
+    "package:mac": "tsc && electron-builder --mac",
+    "package:linux": "tsc && electron-builder --linux",
+    "package:win": "tsc && electron-builder --win"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.5.0"
+  },
+  "build": {
+    "appId": "ai.superclaw.desktop",
+    "productName": "SuperClaw",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server-pack",
+        "to": "server-pack",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}

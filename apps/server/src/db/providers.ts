@@ -20,7 +20,7 @@ export interface ModelConfig {
 export interface ProviderConfig {
   id: string;
   name: string;
-  type: 'anthropic' | 'openai' | 'google' | 'ollama' | 'github-copilot' | 'custom';
+  type: 'anthropic' | 'openai' | 'google' | 'ollama' | 'github-copilot' | 'openrouter' | 'deepseek' | 'groq' | 'mistral' | 'custom';
   apiKey?: string;
   baseUrl?: string;
   status: 'connected' | 'not_configured' | 'error';

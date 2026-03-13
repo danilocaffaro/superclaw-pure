@@ -276,6 +276,14 @@ export async function* runAgent(
             };
             return;
           }
+        } else if (chunk.type === 'error') {
+          // All providers exhausted or provider-level error
+          const errMsg = (chunk as unknown as { error?: string }).error ?? 'Provider error';
+          yield {
+            event: 'error',
+            data: { message: errMsg, code: 'PROVIDER_ERROR' },
+          };
+          return;
         }
       }
     } catch (err) {

@@ -139,6 +139,11 @@ export function registerAgentRoutes(app: FastifyInstance, agents: AgentRepositor
     return reply.status(201).send({ data: agent });
   });
 
+  // Discover agents — in Pure mode this is a no-op (no external gateways)
+  app.post('/agents/discover', async (_req, reply) => {
+    return reply.send({ data: { discovered: 0, message: 'Agent discovery is not available in standalone mode' } });
+  });
+
   // Update agent
   app.patch<{ Params: { id: string }; Body: Partial<AgentCreateInput> }>('/agents/:id', async (req, reply) => {
     const agent = agents.update(req.params.id, req.body);

@@ -58,6 +58,7 @@ import { registerRoutingRoutes } from './api/routing.js';
 import { registerAnalyticsRoutes } from './api/analytics.js';
 import { registerEmbeddingRoutes } from './api/embeddings.js';
 import { registerChannelRoutes } from './api/channels.js';
+import { registerN8nRoutes } from './api/n8n.js';
 import { WorkflowRepository } from './db/workflow-repository.js';
 import { WorkflowEngine, seedBuiltinWorkflows } from './engine/workflow-engine.js';
 import { getMessageBus } from './engine/message-bus.js';
@@ -296,7 +297,8 @@ async function main() {
         '/datasets', '/presentation', '/marketplace', '/auth', '/finetune',
         '/workflows', '/workflow-runs', '/setup', '/debug', '/console',
         '/n8n', '/preview', '/audit', '/integrations', '/webhooks',
-        '/public', '/shared-links', '/backlog', '/routing', '/analytics'];
+        '/public', '/shared-links', '/backlog', '/routing', '/analytics',
+        '/channels', '/embeddings', '/data', '/events', '/models', '/status'];
       if (apiPrefixes.some(p => req.url.startsWith(p))) return;
 
       if (req.url.startsWith('/_next/')) {
@@ -365,6 +367,7 @@ async function main() {
   registerAnalyticsRoutes(app, db);
   registerEmbeddingRoutes(app);
   registerChannelRoutes(app, db);
+  registerN8nRoutes(app);
 
   // ─── Start ────────────────────────────────────────────────────────────
   try {

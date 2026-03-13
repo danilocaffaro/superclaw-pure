@@ -368,6 +368,12 @@ export async function* runAgent(
       role: 'assistant',
       content: iterationText || '',
     };
+    // Attach tool_calls so the provider can send them back to the LLM
+    (assistantMessageWithToolCalls as unknown as Record<string, unknown>).tool_calls = pendingToolCalls.map(tc => ({
+      id: tc.id,
+      type: 'function',
+      function: { name: tc.name, arguments: JSON.stringify(tc.input) },
+    }));
     messages.push(assistantMessageWithToolCalls);
 
     // Execute each tool call and collect results

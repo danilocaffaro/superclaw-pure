@@ -1,12 +1,33 @@
 /**
  * Native Chat Engine — handles native LLM communication.
  * Supports OpenAI-compatible and Anthropic native APIs.
+ * Full tool calling support for both protocols.
  * Streaming via async generators.
  */
 
+// ─── Types ──────────────────────────────────────────────────────────────
+
+/** Message with full tool calling support */
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | ContentBlock[];
+  /** For assistant messages with tool calls (OpenAI format) */
+  tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }>;
+  /** For tool result messages (OpenAI format) */
+  tool_call_id?: string;
+  /** Tool name (for tool result messages) */
+  name?: string;
+}
+
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean };
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
 }
 
 export interface ChatOptions {
@@ -17,7 +38,7 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   extraHeaders?: Record<string, string>;
-  tools?: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
+  tools?: ToolDefinition[];
 }
 
 export interface StreamDelta {
@@ -32,7 +53,6 @@ export interface StreamDelta {
 // ─── OpenAI-Compatible Streaming ────────────────────────────────────────
 
 async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncGenerator<StreamDelta> {
-  // GitHub Copilot enterprise endpoint uses /chat/completions (no /v1/ prefix)
   const base = opts.baseUrl.replace(/\/$/, '');
   const isCopilot = base.includes('githubcopilot.com');
   const url = isCopilot ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
@@ -40,28 +60,51 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
   if (opts.apiKey) headers['Authorization'] = `Bearer ${opts.apiKey}`;
   if (opts.extraHeaders) Object.assign(headers, opts.extraHeaders);
 
+  // Convert messages to OpenAI format
+  const oaiMessages = messages.map(m => {
+    if (m.role === 'tool') {
+      // Tool result message
+      return {
+        role: 'tool' as const,
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+        tool_call_id: m.tool_call_id ?? '',
+      };
+    }
+    if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+      // Assistant message with tool calls
+      return {
+        role: 'assistant' as const,
+        content: typeof m.content === 'string' ? (m.content || null) : JSON.stringify(m.content),
+        tool_calls: m.tool_calls,
+      };
+    }
+    return {
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    };
+  });
+
+  // Build request body
+  const body: Record<string, unknown> = {
+    model: opts.model,
+    messages: oaiMessages,
+    temperature: opts.temperature ?? 0.7,
+    max_tokens: opts.maxTokens ?? 4096,
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+  if (opts.tools && opts.tools.length > 0) {
+    body.tools = opts.tools.map(t => ({
+      type: 'function',
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    }));
+  }
+
   let res: Response;
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: opts.model,
-        messages,
-        temperature: opts.temperature ?? 0.7,
-        max_tokens: opts.maxTokens ?? 4096,
-        stream: true,
-        stream_options: { include_usage: true },
-        ...(opts.tools && opts.tools.length > 0 ? {
-          tools: opts.tools.map(t => ({
-            type: 'function',
-            function: { name: t.name, description: t.description, parameters: t.parameters },
-          })),
-        } : {}),
-      }),
-    });
-  } catch (err: any) {
-    yield { type: 'error', error: `Connection failed: ${err.message}` };
+    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  } catch (err: unknown) {
+    yield { type: 'error', error: `Connection failed: ${(err as Error).message}` };
     return;
   }
 
@@ -94,6 +137,10 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
         if (!trimmed.startsWith('data:')) continue;
         const payload = trimmed.slice(5).trim();
         if (payload === '[DONE]') {
+          // Emit any remaining tool calls before done
+          for (const ptc of pendingToolCalls) {
+            if (ptc) yield { type: 'tool_call', toolCall: ptc };
+          }
           yield { type: 'done', tokensIn, tokensOut };
           return;
         }
@@ -101,30 +148,39 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
           const data = JSON.parse(payload);
           const choice = data.choices?.[0];
           const delta = choice?.delta;
+
           // Text content
           if (delta?.content) yield { type: 'delta', content: delta.content };
-          // Tool calls (streamed in chunks)
+
+          // Tool calls (streamed incrementally)
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls as Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }>) {
-              if (tc.function?.name) {
-                // First chunk of a tool call — accumulate in pendingToolCalls
-                if (!pendingToolCalls[tc.index]) {
-                  pendingToolCalls[tc.index] = { id: tc.id ?? '', name: tc.function.name, arguments: tc.function.arguments ?? '' };
+              const idx = tc.index;
+              if (tc.id || tc.function?.name) {
+                if (!pendingToolCalls[idx]) {
+                  pendingToolCalls[idx] = {
+                    id: tc.id ?? '',
+                    name: tc.function?.name ?? '',
+                    arguments: tc.function?.arguments ?? '',
+                  };
                 } else {
-                  pendingToolCalls[tc.index]!.arguments += tc.function.arguments ?? '';
+                  if (tc.function?.arguments) pendingToolCalls[idx]!.arguments += tc.function.arguments;
                 }
-              } else if (tc.function?.arguments && pendingToolCalls[tc.index]) {
-                pendingToolCalls[tc.index]!.arguments += tc.function.arguments;
+              } else if (tc.function?.arguments && pendingToolCalls[idx]) {
+                pendingToolCalls[idx]!.arguments += tc.function.arguments;
               }
             }
           }
-          // Finish reason — emit accumulated tool calls
-          if (choice?.finish_reason === 'tool_calls' || choice?.finish_reason === 'stop') {
+
+          // Finish reason = tool_calls → emit accumulated tool calls
+          if (choice?.finish_reason === 'tool_calls') {
             for (const ptc of pendingToolCalls) {
               if (ptc) yield { type: 'tool_call', toolCall: ptc };
             }
+            pendingToolCalls.length = 0;
           }
-          // Track usage if provided
+
+          // Usage tracking
           if (data.usage) {
             tokensIn = data.usage.prompt_tokens ?? tokensIn;
             tokensOut = data.usage.completion_tokens ?? tokensOut;
@@ -144,8 +200,58 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
 async function* streamAnthropic(messages: ChatMessage[], opts: ChatOptions): AsyncGenerator<StreamDelta> {
   const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/messages`;
 
+  // Extract system message
   const systemMsg = messages.find(m => m.role === 'system');
   const chatMsgs = messages.filter(m => m.role !== 'system');
+
+  // Convert messages to Anthropic format
+  const anthropicMsgs = chatMsgs.map(m => {
+    if (m.role === 'tool') {
+      // Tool results go as user messages with tool_result content blocks
+      return {
+        role: 'user' as const,
+        content: [{
+          type: 'tool_result' as const,
+          tool_use_id: m.tool_call_id ?? '',
+          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+        }],
+      };
+    }
+    if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+      // Assistant with tool calls → content blocks with text + tool_use
+      const blocks: Array<Record<string, unknown>> = [];
+      const textContent = typeof m.content === 'string' ? m.content : '';
+      if (textContent) blocks.push({ type: 'text', text: textContent });
+      for (const tc of m.tool_calls) {
+        let input: Record<string, unknown> = {};
+        try { input = JSON.parse(tc.function.arguments); } catch { /* empty */ }
+        blocks.push({ type: 'tool_use', id: tc.id, name: tc.function.name, input });
+      }
+      return { role: 'assistant' as const, content: blocks };
+    }
+    return {
+      role: m.role as 'user' | 'assistant',
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    };
+  });
+
+  // Build request body
+  const body: Record<string, unknown> = {
+    model: opts.model,
+    max_tokens: opts.maxTokens ?? 4096,
+    stream: true,
+    messages: anthropicMsgs,
+  };
+  if (systemMsg) {
+    body.system = typeof systemMsg.content === 'string' ? systemMsg.content : JSON.stringify(systemMsg.content);
+  }
+  if (opts.tools && opts.tools.length > 0) {
+    body.tools = opts.tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.parameters,
+    }));
+  }
 
   let res: Response;
   try {
@@ -156,16 +262,10 @@ async function* streamAnthropic(messages: ChatMessage[], opts: ChatOptions): Asy
         'x-api-key': opts.apiKey ?? '',
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: opts.model,
-        max_tokens: opts.maxTokens ?? 4096,
-        stream: true,
-        ...(systemMsg ? { system: systemMsg.content } : {}),
-        messages: chatMsgs.map(m => ({ role: m.role, content: m.content })),
-      }),
+      body: JSON.stringify(body),
     });
-  } catch (err: any) {
-    yield { type: 'error', error: `Connection failed: ${err.message}` };
+  } catch (err: unknown) {
+    yield { type: 'error', error: `Connection failed: ${(err as Error).message}` };
     return;
   }
 
@@ -183,6 +283,11 @@ async function* streamAnthropic(messages: ChatMessage[], opts: ChatOptions): Asy
   const decoder = new TextDecoder();
   let buffer = '';
   let tokensIn = 0, tokensOut = 0;
+  // Anthropic streams tool_use as content blocks
+  let currentToolId = '';
+  let currentToolName = '';
+  let currentToolArgs = '';
+  let inToolUse = false;
 
   try {
     while (true) {
@@ -198,16 +303,45 @@ async function* streamAnthropic(messages: ChatMessage[], opts: ChatOptions): Asy
         const payload = trimmed.slice(5).trim();
         try {
           const data = JSON.parse(payload);
-          if (data.type === 'content_block_delta' && data.delta?.text) {
+
+          // Text deltas
+          if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
             yield { type: 'delta', content: data.delta.text };
+          }
+
+          // Tool use block start
+          if (data.type === 'content_block_start' && data.content_block?.type === 'tool_use') {
+            inToolUse = true;
+            currentToolId = data.content_block.id ?? '';
+            currentToolName = data.content_block.name ?? '';
+            currentToolArgs = '';
+          }
+
+          // Tool use input delta (streamed JSON)
+          if (data.type === 'content_block_delta' && data.delta?.type === 'input_json_delta') {
+            currentToolArgs += data.delta.partial_json ?? '';
+          }
+
+          // Tool use block end → emit tool_call
+          if (data.type === 'content_block_stop' && inToolUse) {
+            yield {
+              type: 'tool_call',
+              toolCall: { id: currentToolId, name: currentToolName, arguments: currentToolArgs },
+            };
+            inToolUse = false;
+            currentToolId = '';
+            currentToolName = '';
+            currentToolArgs = '';
+          }
+
+          // Usage tracking
+          if (data.type === 'message_start' && data.message?.usage) {
+            tokensIn = data.message.usage.input_tokens ?? tokensIn;
           }
           if (data.type === 'message_delta' && data.usage) {
             tokensOut = data.usage.output_tokens ?? tokensOut;
           }
-          if (data.type === 'message_start' && data.message?.usage) {
-            tokensIn = data.message.usage.input_tokens ?? tokensIn;
-          }
-        } catch { /* skip */ }
+        } catch { /* skip malformed */ }
       }
     }
   } finally {
@@ -221,7 +355,7 @@ async function* streamAnthropic(messages: ChatMessage[], opts: ChatOptions): Asy
 
 /**
  * Stream a chat completion from any supported provider.
- * Yields deltas followed by a final 'done' event with token counts.
+ * Full tool calling support for both OpenAI and Anthropic protocols.
  */
 export function streamChat(messages: ChatMessage[], opts: ChatOptions): AsyncGenerator<StreamDelta> {
   if (opts.providerType === 'anthropic') {
@@ -231,7 +365,7 @@ export function streamChat(messages: ChatMessage[], opts: ChatOptions): AsyncGen
 }
 
 /**
- * Non-streaming completion (convenience wrapper).
+ * Non-streaming completion (convenience wrapper). Does NOT handle tool calls.
  */
 export async function chatComplete(messages: ChatMessage[], opts: ChatOptions): Promise<{ content: string; tokensIn: number; tokensOut: number }> {
   let content = '';

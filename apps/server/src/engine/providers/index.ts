@@ -22,6 +22,7 @@ export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string | Array<{ type: string; text?: string; [k: string]: unknown }>;
   tool_call_id?: string;
+  name?: string;
 }
 
 export type { LLMOptions, ToolDefinition as LLMToolDefinition } from './types.js';
@@ -102,10 +103,19 @@ export class ProviderRouter {
       const providerType = resolveProviderType(providerId, provConfig.type);
       const baseUrl = resolveProviderBaseUrl(providerId, provConfig.baseUrl);
 
-      const chatMessages: import('../chat-engine.js').ChatMessage[] = messages.map(m => ({
-        role: (m.role === 'tool' ? 'assistant' : m.role) as 'user' | 'assistant' | 'system',
-        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-      }));
+      // Convert LLMMessage[] to ChatMessage[] preserving tool call data
+      const chatMessages: import('../chat-engine.js').ChatMessage[] = messages.map(m => {
+        const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+        if (m.role === 'tool') {
+          return { role: 'tool' as const, content, tool_call_id: m.tool_call_id ?? (m as unknown as { toolCallId?: string }).toolCallId ?? '', name: m.name };
+        }
+        // Check for tool_calls on assistant messages
+        const tc = (m as unknown as { tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> }).tool_calls;
+        if (m.role === 'assistant' && tc && tc.length > 0) {
+          return { role: 'assistant' as const, content, tool_calls: tc };
+        }
+        return { role: m.role as 'system' | 'user' | 'assistant', content };
+      });
 
       const chatOptions: import('../chat-engine.js').ChatOptions = {
         model: modelId,

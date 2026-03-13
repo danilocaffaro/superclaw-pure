@@ -155,6 +155,90 @@ async function testProviderConnection(
 }
 
 // ============================================================
+// GitHub Copilot — OAuth Device Flow
+// ============================================================
+// Uses VS Code's client ID (same one used by Copilot extensions)
+const COPILOT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
+
+async function startCopilotDeviceFlow(): Promise<{
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}> {
+  const res = await fetch('https://github.com/login/device/code', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: COPILOT_CLIENT_ID,
+      scope: 'copilot',
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`GitHub returned ${res.status}`);
+  return res.json() as Promise<{
+    device_code: string; user_code: string;
+    verification_uri: string; expires_in: number; interval: number;
+  }>;
+}
+
+async function pollCopilotToken(deviceCode: string): Promise<{
+  status: 'pending' | 'success' | 'expired' | 'error';
+  token?: string;
+  error?: string;
+}> {
+  const res = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: COPILOT_CLIENT_ID,
+      device_code: deviceCode,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) return { status: 'error', error: `GitHub returned ${res.status}` };
+  const data = await res.json() as {
+    access_token?: string;
+    error?: string;
+    error_description?: string;
+  };
+  if (data.access_token) {
+    // Exchange GitHub token for Copilot API token
+    try {
+      const copilotRes = await fetch('https://api.github.com/copilot_internal/v2/token', {
+        headers: {
+          'Authorization': `Bearer ${data.access_token}`,
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (copilotRes.ok) {
+        const copilotData = await copilotRes.json() as { token?: string; expires_at?: number };
+        if (copilotData.token) {
+          return { status: 'success', token: copilotData.token };
+        }
+      }
+      // Fallback: use the GitHub OAuth token directly
+      return { status: 'success', token: data.access_token };
+    } catch {
+      return { status: 'success', token: data.access_token };
+    }
+  }
+  if (data.error === 'authorization_pending') return { status: 'pending' };
+  if (data.error === 'slow_down') return { status: 'pending' };
+  if (data.error === 'expired_token') return { status: 'expired' };
+  return { status: 'error', error: data.error_description || data.error || 'Unknown error' };
+}
+
+// ============================================================
 // Route Registration
 // ============================================================
 
@@ -198,7 +282,7 @@ export function registerSetupRoutes(
     }
 
     // For ollama and custom providers (may have no key), apiKey is optional
-    if (providerId !== 'ollama' && providerId !== 'custom' && !apiKey) {
+    if (providerId !== 'ollama' && providerId !== 'custom' && providerId !== 'github-copilot' && !apiKey) {
       return reply.status(400).send({
         error: { code: 'VALIDATION', message: 'apiKey is required' },
       });
@@ -336,6 +420,39 @@ export function registerSetupRoutes(
       });
     }
   });
+
+  // ── POST /setup/copilot/device-code — Start OAuth Device Flow ─────────────
+  app.post('/setup/copilot/device-code', async (_req, reply) => {
+    try {
+      const flow = await startCopilotDeviceFlow();
+      return reply.send({ data: flow });
+    } catch (err) {
+      return reply.status(500).send({
+        error: { code: 'COPILOT_AUTH', message: (err as Error).message },
+      });
+    }
+  });
+
+  // ── POST /setup/copilot/poll — Poll for token ─────────────────────────────
+  app.post<{ Body: { device_code: string } }>(
+    '/setup/copilot/poll',
+    async (req, reply) => {
+      const { device_code } = req.body ?? {};
+      if (!device_code) {
+        return reply.status(400).send({
+          error: { code: 'VALIDATION', message: 'device_code is required' },
+        });
+      }
+      try {
+        const result = await pollCopilotToken(device_code);
+        return reply.send({ data: result });
+      } catch (err) {
+        return reply.status(500).send({
+          error: { code: 'COPILOT_AUTH', message: (err as Error).message },
+        });
+      }
+    },
+  );
 
   // ── POST /setup/complete ───────────────────────────────────────────────────
   app.post('/setup/complete', async () => {

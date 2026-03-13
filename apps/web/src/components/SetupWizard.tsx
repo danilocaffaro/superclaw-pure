@@ -234,6 +234,284 @@ function EmojiPicker({ value, onChange }: { value: string; onChange: (e: string)
   );
 }
 
+// ── GitHub Copilot Auth Panel ─────────────────────────────────────────────────
+
+function CopilotAuthPanel({ onToken }: { onToken: (token: string) => void }) {
+  const [mode, setMode] = useState<'choose' | 'auto' | 'manual'>('choose');
+  const [userCode, setUserCode] = useState('');
+  const [verificationUri, setVerificationUri] = useState('');
+  const [deviceCode, setDeviceCode] = useState('');
+  const [pollStatus, setPollStatus] = useState<'idle' | 'waiting' | 'success' | 'error' | 'expired'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [manualToken, setManualToken] = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  const startAutoLogin = async () => {
+    setMode('auto');
+    setPollStatus('waiting');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/setup/copilot/device-code', { method: 'POST' });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const json = await res.json() as { data: { device_code: string; user_code: string; verification_uri: string; interval: number } };
+      const { device_code, user_code, verification_uri, interval } = json.data;
+      setDeviceCode(device_code);
+      setUserCode(user_code);
+      setVerificationUri(verification_uri);
+
+      // Open GitHub in new tab
+      window.open(verification_uri, '_blank');
+
+      // Start polling
+      const pollInterval = Math.max((interval || 5) * 1000, 5000);
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollRes = await fetch('/setup/copilot/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_code }),
+          });
+          if (!pollRes.ok) return;
+          const pollJson = await pollRes.json() as { data: { status: string; token?: string; error?: string } };
+          if (pollJson.data.status === 'success' && pollJson.data.token) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setPollStatus('success');
+            onToken(pollJson.data.token);
+          } else if (pollJson.data.status === 'expired') {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setPollStatus('expired');
+            setErrorMsg('Code expired. Please try again.');
+          } else if (pollJson.data.status === 'error') {
+            if (pollRef.current) clearInterval(pollRef.current);
+            setPollStatus('error');
+            setErrorMsg(pollJson.data.error || 'Authentication failed');
+          }
+        } catch { /* continue polling */ }
+      }, pollInterval);
+    } catch (err) {
+      setPollStatus('error');
+      setErrorMsg((err as Error).message);
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (manualToken.trim()) {
+      onToken(manualToken.trim());
+    }
+  };
+
+  const boxStyle: React.CSSProperties = {
+    padding: '14px 16px',
+    background: 'var(--surface-hover, #161b22)',
+    borderRadius: 8,
+    border: '1px solid var(--border, #30363d)',
+    cursor: 'pointer',
+    transition: 'border-color 150ms',
+  };
+
+  if (mode === 'choose') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary, #c9d1d9)', marginBottom: 4 }}>
+          Choose how to connect your GitHub Copilot account:
+        </div>
+
+        {/* Option A: Auto Login */}
+        <div
+          style={boxStyle}
+          onClick={startAutoLogin}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--blue, #58a6ff)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border, #30363d)'; }}
+        >
+          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #f0f6fc)', marginBottom: 4 }}>
+            🔐 Auto Login (recommended)
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', lineHeight: 1.5 }}>
+            Opens GitHub in your browser. Sign in and enter a code — SuperClaw handles the rest.
+            Requires an active GitHub Copilot subscription.
+          </div>
+        </div>
+
+        {/* Option B: Manual Token */}
+        <div
+          style={boxStyle}
+          onClick={() => setMode('manual')}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--blue, #58a6ff)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border, #30363d)'; }}
+        >
+          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text, #f0f6fc)', marginBottom: 4 }}>
+            🔑 Paste Token Manually
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', lineHeight: 1.5 }}>
+            Already have a Copilot API token? Paste it directly.
+          </div>
+        </div>
+
+        <a
+          href="https://github.com/settings/copilot"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 11, color: 'var(--blue, #58a6ff)', textDecoration: 'none', marginTop: 4 }}
+        >
+          🔗 Manage your GitHub Copilot subscription →
+        </a>
+      </div>
+    );
+  }
+
+  if (mode === 'auto') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {pollStatus === 'waiting' && userCode && (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary, #c9d1d9)', lineHeight: 1.5 }}>
+              A browser tab should have opened. If not, go to:
+            </div>
+            <a
+              href={verificationUri}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block', textAlign: 'center', padding: '8px 16px',
+                background: 'var(--surface-hover, #161b22)', borderRadius: 8,
+                border: '1px solid var(--border, #30363d)',
+                color: 'var(--blue, #58a6ff)', fontSize: 13, textDecoration: 'none',
+              }}
+            >
+              {verificationUri}
+            </a>
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', marginBottom: 6 }}>
+                Enter this code on GitHub:
+              </div>
+              <div style={{
+                fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)',
+                letterSpacing: 6, color: 'var(--text, #f0f6fc)',
+                padding: '12px 24px', background: 'var(--surface-hover, #161b22)',
+                borderRadius: 8, border: '1px solid var(--border, #30363d)',
+                display: 'inline-block', userSelect: 'all',
+              }}>
+                {userCode}
+              </div>
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
+              marginTop: 8, padding: '10px 14px', borderRadius: 8,
+              background: 'color-mix(in srgb, var(--blue, #58a6ff) 6%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--blue, #58a6ff) 20%, transparent)',
+            }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: 'var(--blue, #58a6ff)',
+                animation: 'pulse 1.5s infinite',
+              }} />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary, #c9d1d9)' }}>
+                Waiting for you to authorize on GitHub…
+              </span>
+            </div>
+          </>
+        )}
+        {pollStatus === 'waiting' && !userCode && (
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted, #8b949e)', fontSize: 13 }}>
+            Contacting GitHub…
+          </div>
+        )}
+        {pollStatus === 'success' && (
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--green, #3fb950)' }}>
+              GitHub Copilot connected!
+            </div>
+          </div>
+        )}
+        {(pollStatus === 'error' || pollStatus === 'expired') && (
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>{pollStatus === 'expired' ? '⏱' : '❌'}</div>
+            <div style={{ fontSize: 13, color: 'var(--coral, #f85149)', marginBottom: 12 }}>{errorMsg}</div>
+            <button
+              onClick={() => { setMode('choose'); setPollStatus('idle'); setErrorMsg(''); }}
+              style={{
+                padding: '8px 20px', borderRadius: 8,
+                background: 'var(--surface-hover, #161b22)', border: '1px solid var(--border, #30363d)',
+                color: 'var(--text, #f0f6fc)', cursor: 'pointer', fontSize: 12,
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {pollStatus !== 'success' && (
+          <button
+            onClick={() => { if (pollRef.current) clearInterval(pollRef.current); setMode('choose'); setPollStatus('idle'); }}
+            style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'center' }}
+          >
+            ← Back
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Manual mode
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #8b949e)', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 4, display: 'block' }}>
+          Copilot Token
+        </label>
+        <input
+          type="password"
+          placeholder="Paste your Copilot token"
+          value={manualToken}
+          onChange={(e) => setManualToken(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && manualToken) handleManualSubmit(); }}
+          style={{
+            width: '100%', padding: '9px 12px',
+            background: 'var(--bg, #0d1117)', border: '1px solid var(--border, #30363d)',
+            borderRadius: 8, color: 'var(--text, #f0f6fc)', fontSize: 13,
+            outline: 'none', boxSizing: 'border-box' as const,
+          }}
+          autoFocus
+        />
+      </div>
+      <div style={{ padding: '10px 12px', background: 'var(--surface-hover, #161b22)', borderRadius: 8, border: '1px solid var(--border, #30363d)' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #8b949e)', marginBottom: 6 }}>
+          📋 How to get a Copilot token:
+        </div>
+        <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11, color: 'var(--text-muted, #8b949e)', lineHeight: 1.8 }}>
+          <li>Install GitHub CLI: <code style={{ background: 'var(--surface, #0d1117)', padding: '1px 5px', borderRadius: 3 }}>brew install gh</code></li>
+          <li>Authenticate: <code style={{ background: 'var(--surface, #0d1117)', padding: '1px 5px', borderRadius: 3 }}>gh auth login</code></li>
+          <li>Get token: <code style={{ background: 'var(--surface, #0d1117)', padding: '1px 5px', borderRadius: 3 }}>gh auth token</code></li>
+          <li>Paste the token above</li>
+        </ol>
+      </div>
+      {manualToken && (
+        <button
+          onClick={handleManualSubmit}
+          style={{
+            padding: '9px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: 'var(--coral, #f85149)', border: 'none', color: '#fff', cursor: 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          Connect
+        </button>
+      )}
+      <button
+        onClick={() => setMode('choose')}
+        style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'center' }}
+      >
+        ← Back
+      </button>
+    </div>
+  );
+}
+
 // ── Main Wizard ───────────────────────────────────────────────────────────────
 
 export function SetupWizard({ onComplete }: SetupWizardProps) {
@@ -408,6 +686,16 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         'No API key needed — just paste the base URL below',
       ],
       url: 'https://ollama.com/download',
+    },
+    {
+      id: 'github-copilot', name: 'GitHub Copilot', icon: '🐙', desc: 'Claude, GPT-4o via GitHub',
+      hint: 'Requires GitHub Copilot subscription',
+      steps: [
+        'You need an active GitHub Copilot subscription (Individual, Business, or Enterprise)',
+        'Choose Auto Login below to authenticate via your browser',
+        'Or paste a token manually if you already have one',
+      ],
+      url: 'https://github.com/settings/copilot',
     },
     {
       id: 'custom', name: 'Other', icon: '🔧', desc: 'Any OpenAI-compatible API',
@@ -673,7 +961,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             {activeProvider && (
               <div style={{ ...cardStyle, marginBottom: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {activeProvider !== 'ollama' && activeProvider !== 'custom' ? (
+                  {activeProvider !== 'ollama' && activeProvider !== 'custom' && activeProvider !== 'github-copilot' ? (
                     <div>
                       <label style={labelStyle}>API Key</label>
                       <input
@@ -710,6 +998,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                         );
                       })()}
                     </div>
+                  ) : activeProvider === 'github-copilot' ? (
+                    <CopilotAuthPanel
+                      onToken={(token) => {
+                        setApiKeyInput(token);
+                        setTestStatus('success');
+                        setTestError('');
+                      }}
+                    />
                   ) : activeProvider === 'custom' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
@@ -770,10 +1066,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   <button
                     type="button"
                     onClick={() => void handleTestConnection()}
-                    disabled={testStatus === 'testing' || (activeProvider !== 'ollama' && !apiKeyInput && activeProvider !== 'custom')}
+                    disabled={testStatus === 'testing' || (activeProvider !== 'ollama' && activeProvider !== 'github-copilot' && !apiKeyInput && activeProvider !== 'custom')}
                     style={{
                       ...btnPrimary,
-                      opacity: testStatus === 'testing' || (activeProvider !== 'ollama' && !apiKeyInput && activeProvider !== 'custom') ? 0.4 : 1,
+                      opacity: testStatus === 'testing' || (activeProvider !== 'ollama' && activeProvider !== 'github-copilot' && !apiKeyInput && activeProvider !== 'custom') ? 0.4 : 1,
                       alignSelf: 'flex-start',
                     }}
                   >

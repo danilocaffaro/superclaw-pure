@@ -28,8 +28,90 @@ import { TurnManager } from './turn-manager.js';
 import type { AgentWorker } from './agent-worker.js';
 import { logger } from '../lib/logger.js';
 import { dispatchToExternalAgent, type SquadMessageContext } from './external-agent-bridge.js';
+import {
+  parseMentions,
+  detectPullThrough,
+  buildArcherContext,
+  type SquadAgent,
+  type MentionParseResult,
+} from './archer-router.js';
 import { ExternalAgentRepository } from '../db/external-agents.js';
 import { initDatabase } from '../db/index.js';
+
+// ─── ARCHER v2 helpers ────────────────────────────────────────────────────────
+
+/** Map an AgentConfig to the SquadAgent shape expected by archer-router */
+function toSquadAgent(a: AgentConfig): SquadAgent {
+  return {
+    id: a.id,
+    name: a.name,
+    emoji: a.emoji ?? '🤖',
+    sessionKey: a.id, // use agent id as session key for routing purposes
+  };
+}
+
+/**
+ * Compute keyword-overlap score between a message and an agent's system prompt.
+ * Returns a value between 0 and 1.  Stopwords are excluded.
+ */
+const STOPWORDS = new Set([
+  'the','a','an','is','in','on','at','to','of','and','or','but','for',
+  'with','this','that','it','be','are','was','were','you','we','i',
+  'he','she','they','have','has','had','do','does','did','will','would',
+  'can','could','should','may','might','not','no','so','if','as','by',
+  'from','up','about','into','than','then','its','our','your',
+]);
+
+function keywordOverlap(message: string, systemPrompt: string): number {
+  const tokenize = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !STOPWORDS.has(w));
+
+  const msgTokens = new Set(tokenize(message));
+  const sysTokens = new Set(tokenize(systemPrompt));
+
+  if (msgTokens.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of msgTokens) {
+    if (sysTokens.has(token)) overlap++;
+  }
+
+  return overlap / msgTokens.size;
+}
+
+/**
+ * 2.9 — Smart skip heuristic.
+ * Returns true if the agent should be skipped (overlap < SKIP_THRESHOLD).
+ * Never skips index=0 (coordinator/PO) or @mentioned agents.
+ */
+const SKIP_THRESHOLD = 0.10; // 10%
+
+function shouldSkipAgent(
+  agent: AgentConfig,
+  agentIndex: number,
+  message: string,
+  mentionResult: MentionParseResult,
+): boolean {
+  // Never skip the first agent (PO/coordinator)
+  if (agentIndex === 0) return false;
+
+  // Never skip @mentioned agents
+  const isMentioned = mentionResult.targetAgents.some(a => a.id === agent.id);
+  if (isMentioned) return false;
+
+  const score = keywordOverlap(message, agent.systemPrompt);
+  if (score < SKIP_THRESHOLD) {
+    logger.info(
+      `[SquadRunner] 2.9 Smart-skip: ${agent.name} (overlap=${(score * 100).toFixed(1)}% < ${SKIP_THRESHOLD * 100}%)`,
+    );
+    return true;
+  }
+  return false;
+}
 
 // ─── Squad Config ─────────────────────────────────────────────────────────────
 
@@ -597,32 +679,105 @@ async function* runDebate(
 
 // ─── Routing Strategy: Sequential ────────────────────────────────────────────
 //
-// Uses TurnManager('round-robin') with maxRounds=1.
-// Each agent processes in order; each agent receives the previous agent's
-// output as context.  The last agent delivers the final synthesised answer.
+// v3 — ARCHER v2 + Squad Intelligence (Sprint 73: items 2.7, 2.8, 2.9)
+//
+// 2.7 — ARCHER v2 @mention routing:
+//   @specific  → only that agent (+ always PO as first)
+//   @all       → all agents in squad order
+//   no @       → PO-only (unless PO pulls through)
+//   PO pull-through: after PO responds, scan for @mentions → trigger those agents
+//
+// 2.8 — Agent-to-agent routing:
+//   After each non-PO agent responds, scan for @mentions of other agents.
+//   Triggered agents get an extra turn even if already spoken / skipped.
+//   maxExtraTurns = 2 prevents infinite chains.
+//
+// 2.9 — Smart skip:
+//   Before running each non-PO, non-mentioned agent, compute keyword overlap
+//   between message and agent's system_prompt. If overlap < 10%, skip and
+//   emit a squad.skip event. Skipped agents are not silently dropped — they
+//   emit a typed SSE event so the UI can show "Agent X skipped".
+
+/** Maximum extra turns granted via agent-to-agent @mentions (2.8) */
+const MAX_EXTRA_TURNS = 2;
 
 async function* runSequential(
   sessionId: string,
   message: string,
   config: SquadConfig,
 ): AsyncGenerator<SSEEvent> {
-  let context = message;
+  const bus = getMessageBus();
+  const allSquadAgents = config.agents.map(toSquadAgent);
 
-  // Set up turn manager with maxRounds=1 (each agent speaks once)
+  // ── 2.7: Parse @mentions in the user message ──────────────────────────────
+  const mentionResult = parseMentions(message, allSquadAgents);
+  logger.info(
+    `[SquadRunner] 2.7 ARCHER: noMention=${mentionResult.isNoMention} isAll=${mentionResult.isAllMention} targets=[${mentionResult.targetAgents.map(a => a.id).join(',')}]`,
+  );
+
+  // Determine which agents should respond in the primary loop.
+  // Rules:
+  //   @all / @todos / @team → every agent
+  //   @specific             → those agents only (PO is always index 0, keeps first-turn semantics)
+  //   no @                  → PO only (pull-through may add more after PO responds)
+  let primaryAgents: AgentConfig[];
+  if (mentionResult.isAllMention) {
+    primaryAgents = [...config.agents];
+  } else if (!mentionResult.isNoMention && mentionResult.targetAgents.length > 0) {
+    // @specific: preserve squad order, include only mentioned agents
+    // Always ensure the PO (index 0) runs first — even if not mentioned —
+    // so pull-through detection can fire.
+    const mentionedIds = new Set(mentionResult.targetAgents.map(a => a.id));
+    primaryAgents = config.agents.filter((a, idx) => idx === 0 || mentionedIds.has(a.id));
+  } else {
+    // No @mention → PO only
+    primaryAgents = config.agents.length > 0 ? [config.agents[0]] : [];
+  }
+
+  // Set up turn manager with maxRounds=1 (each agent speaks once in primary loop)
   const turnMgr = new TurnManager(
     config.agents.map((a) => a.id),
     'round-robin',
     1,
   );
 
-  for (let i = 0; i < config.agents.length; i++) {
-    const agent = config.agents[i];
-    const isFirst = i === 0;
-    const isLast = i === config.agents.length - 1;
+  // Accumulated previous responses for context passing
+  const previousResponses: Array<{ agentId: string; name: string; emoji: string; text: string }> = [];
+
+  // Track agents that have already spoken (for agent-to-agent extra turns in 2.8)
+  const spokenAgentIds = new Set<string>();
+
+  // 2.8: extra turn counter to cap infinite chains
+  let extraTurnsUsed = 0;
+
+  // ── Helper: run one agent turn and collect response ────────────────────────
+  async function* runAgentTurn(
+    agent: AgentConfig,
+    agentIndex: number,         // position in config.agents (for isFirst/isLast semantics)
+    totalActive: number,        // how many agents are in this pass
+    turnInPass: number,         // 1-based turn number within this pass
+    prevContext: string,
+    responseRef: { text: string },
+    isExtraTurn = false,
+  ): AsyncGenerator<SSEEvent> {
+    const isFirst = agentIndex === 0 && !isExtraTurn;
+    const isLast = turnInPass === totalActive;
+
+    // Build ARCHER context block for this agent
+    const archerCtx = buildArcherContext(
+      { squadName: config.name, agents: allSquadAgents },
+      toSquadAgent(agent),
+      turnInPass,
+      totalActive,
+      mentionResult,
+    );
 
     const prompt = isFirst
-      ? context
-      : `Previous agent's analysis:\n${context}\n\n` +
+      ? prevContext
+      : `${archerCtx}\n\n` +
+        (prevContext !== message
+          ? `Previous agent's analysis:\n${prevContext}\n\n`
+          : '') +
         `Build on this analysis. ${isLast ? 'Provide the final synthesized answer.' : 'Add your perspective.'}`;
 
     yield {
@@ -631,27 +786,21 @@ async function* runSequential(
         sessionId,
         agentId: agent.id,
         agentName: agent.name,
-        step: i + 1,
-        total: config.agents.length,
+        step: turnInPass,
+        total: totalActive,
+        isExtraTurn,
       },
     };
 
     let response = '';
-
-    // Try worker-based execution
     const worker = tryGetWorker(agent);
+
     if (isExternalAgent(agent)) {
-      // External agent — dispatch via webhook
-      const prevResponses = config.agents.slice(0, i).map((a, idx) => ({
-        agentId: a.id, name: a.name, emoji: a.emoji ?? '🤖', text: '', // TODO: accumulate
-      }));
-      for await (const event of runExternalAgent(sessionId, prompt, agent, config, prevResponses, i + 1)) {
+      for await (const event of runExternalAgent(sessionId, prompt, agent, config, previousResponses, turnInPass)) {
         yield event;
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
-          if (typeof d.text === 'string' && !d.isHeader) {
-            response += d.text;
-          }
+          if (typeof d.text === 'string' && !d.isHeader) response += d.text;
         }
       }
     } else if (worker && turnMgr.canSpeak(agent.id)) {
@@ -659,29 +808,26 @@ async function* runSequential(
         yield event;
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
-          if (typeof d.text === 'string') {
-            response += d.text;
-          }
+          if (typeof d.text === 'string') response += d.text;
         }
       }
       turnMgr.recordTurn(agent.id);
     } else {
-      // Fallback: direct runAgent()
       for await (const event of runAgent(sessionId, prompt, agent)) {
         yield event;
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
-          if (typeof d.text === 'string') {
-            response += d.text;
-          }
+          if (typeof d.text === 'string') response += d.text;
         }
       }
     }
 
-    context = response;
+    responseRef.text = response;
 
-    // Publish sequential step to bus
-    const bus = getMessageBus();
+    // Stash response for context passing
+    previousResponses.push({ agentId: agent.id, name: agent.name, emoji: agent.emoji ?? '🤖', text: response });
+    spokenAgentIds.add(agent.id);
+
     bus.publish({
       from: agent.id,
       to: `squad.${config.id}`,
@@ -689,5 +835,134 @@ async function* runSequential(
       content: response.slice(0, 500),
       metadata: { sessionId, squadId: config.id, priority: 1, timestamp: Date.now() },
     });
+  }
+
+  // ── Primary loop (2.7 + 2.9) ──────────────────────────────────────────────
+  let lastResponse = message;
+  let poResponse = '';
+
+  for (let passIdx = 0; passIdx < primaryAgents.length; passIdx++) {
+    const agent = primaryAgents[passIdx];
+    const configIndex = config.agents.findIndex(a => a.id === agent.id);
+
+    // ── 2.9 Smart skip (non-PO, non-mentioned) ──────────────────────────────
+    // Skip check: only when @all or no-mention (specific @mention agents are always included)
+    if (mentionResult.isAllMention || mentionResult.isNoMention) {
+      if (shouldSkipAgent(agent, configIndex, message, mentionResult)) {
+        yield {
+          event: 'squad.skip' as SSEEvent['event'],
+          data: {
+            agentId: agent.id,
+            agentName: agent.name,
+            reason: 'low-relevance',
+            threshold: SKIP_THRESHOLD,
+          },
+        } as SSEEvent;
+        continue;
+      }
+    }
+
+    const ref = { text: '' };
+    for await (const event of runAgentTurn(agent, configIndex, primaryAgents.length, passIdx + 1, lastResponse, ref)) {
+      yield event;
+    }
+    lastResponse = ref.text;
+
+    // Save PO response for pull-through detection (2.7)
+    if (configIndex === 0) {
+      poResponse = ref.text;
+    }
+  }
+
+  // ── 2.7 PO Pull-Through ───────────────────────────────────────────────────
+  // Only when @all is NOT active and PO ran (i.e., not already in @specific or @all mode
+  // where all agents already ran). Also skip if we're already in @all mode.
+  const poAgent = config.agents[0];
+
+  if (!mentionResult.isAllMention && poResponse.length > 0) {
+    const pullResult = detectPullThrough(poResponse, allSquadAgents, toSquadAgent(poAgent));
+    if (pullResult.pulledAgents.length > 0) {
+      logger.info(`[SquadRunner] 2.7 Pull-through: ${pullResult.pulledAgents.map(a => a.id).join(', ')}`);
+
+      for (let ptIdx = 0; ptIdx < pullResult.pulledAgents.length; ptIdx++) {
+        const pulledSquadAgent = pullResult.pulledAgents[ptIdx];
+        const pulledConfig = config.agents.find(a => a.id === pulledSquadAgent.id);
+        if (!pulledConfig) continue;
+
+        // Don't re-run agents that already spoke in primary loop
+        if (spokenAgentIds.has(pulledConfig.id)) continue;
+
+        const ptConfigIndex = config.agents.findIndex(a => a.id === pulledConfig.id);
+        const ptRef = { text: '' };
+        for await (const event of runAgentTurn(
+          pulledConfig,
+          ptConfigIndex,
+          pullResult.pulledAgents.length,
+          ptIdx + 1,
+          lastResponse,
+          ptRef,
+        )) {
+          yield event;
+        }
+        lastResponse = ptRef.text;
+      }
+    }
+  }
+
+  // ── 2.8 Agent-to-agent routing ────────────────────────────────────────────
+  // After each agent in the spoken set, scan their response for @mentions.
+  // If found, queue those agents for extra turns (up to MAX_EXTRA_TURNS).
+  // We process newly-spoken agents in FIFO order; pulled agents may in turn
+  // trigger more agents, capped by MAX_EXTRA_TURNS.
+
+  // Queue: [{ agentId, response }] of agents we haven't yet checked for pull-through
+  const a2aQueue: Array<{ agentId: string; response: string }> = previousResponses
+    .filter(r => r.agentId !== poAgent.id) // PO was already handled by pull-through above
+    .map(r => ({ agentId: r.agentId, response: r.text }));
+
+  while (a2aQueue.length > 0 && extraTurnsUsed < MAX_EXTRA_TURNS) {
+    const { agentId, response } = a2aQueue.shift()!;
+    const speakingSquadAgent = allSquadAgents.find(a => a.id === agentId);
+    if (!speakingSquadAgent || !response) continue;
+
+    const a2aResult = detectPullThrough(response, allSquadAgents, speakingSquadAgent);
+    if (a2aResult.pulledAgents.length === 0) continue;
+
+    for (const pulledSquadAgent of a2aResult.pulledAgents) {
+      if (extraTurnsUsed >= MAX_EXTRA_TURNS) break;
+
+      const pulledConfig = config.agents.find(a => a.id === pulledSquadAgent.id);
+      if (!pulledConfig) continue;
+
+      const a2aConfigIndex = config.agents.findIndex(a => a.id === pulledConfig.id);
+      extraTurnsUsed++;
+
+      logger.info(
+        `[SquadRunner] 2.8 Agent-to-agent: ${speakingSquadAgent.name} → ${pulledSquadAgent.name} (extra turn ${extraTurnsUsed}/${MAX_EXTRA_TURNS})`,
+      );
+
+      const a2aRef = { text: '' };
+      for await (const event of runAgentTurn(
+        pulledConfig,
+        a2aConfigIndex,
+        1,
+        1,
+        lastResponse,
+        a2aRef,
+        /* isExtraTurn */ true,
+      )) {
+        yield event;
+      }
+      lastResponse = a2aRef.text;
+
+      // Add to a2a queue so this agent's response can also trigger further pulls
+      if (a2aRef.text) {
+        a2aQueue.push({ agentId: pulledConfig.id, response: a2aRef.text });
+      }
+    }
+  }
+
+  if (extraTurnsUsed >= MAX_EXTRA_TURNS && a2aQueue.length > 0) {
+    logger.info(`[SquadRunner] 2.8 Agent-to-agent chain capped at maxExtraTurns=${MAX_EXTRA_TURNS}`);
   }
 }

@@ -30,8 +30,11 @@
 | **2.4** | **UI External Agents** — CRUD + test + status/circuit breaker na interface | Backend 100% pronto, zero exposição na UI | ~4h | — |
 | **2.5** | **`streamGoogle` nativo** — 3º streaming mode no chat-engine.ts | Workaround via OpenRouter existe, mas latência extra | ~3h | Clark |
 | **2.6** | **MAX_TOOL_ITERATIONS configurável na UI** — expor o setting no painel de agent config | ✅ Backend pronto (commit `9a39882`), falta UI | ~1h | — |
+| **2.7** | **Squad Intelligence — Plugar ARCHER v2 no squad-runner** | ARCHER v2 existe (258L) mas NINGUÉM chama. `parseMentions` + `detectPullThrough` são código morto. Plugar no squad-runner: @mention routing real, PO pull-through, smart skip | ~4h | Clark |
+| **2.8** | **Agent-to-agent dentro de squad** — resposta de um agente pode @mencionar outro → sistema roteia automaticamente | Hoje são N respostas independentes. Com isso, viram conversa real | ~3h | Clark |
+| **2.9** | **Smart skip** — se step N já resolveu, step N+1 pode avaliar e pular ou complementar | Evita respostas redundantes no sequential mode | ~2h | Clark |
 
-**Estimativa Tier 2: ~16h (2-3 sprints)**
+**Estimativa Tier 2: ~25h (3-4 sprints)**
 
 ---
 
@@ -69,7 +72,8 @@
 | **Sprint 70** | 1.4, 1.5, 1.6 | 🔲 Planned |
 | **Sprint 71** | 2.1, 2.2, 2.3 | 🔲 Planned |
 | **Sprint 72** | 2.4, 2.5, 2.6 | 🔲 Planned |
-| **Sprint 73+** | Tier 3 | 🔲 Backlog |
+| **Sprint 73** | 2.7, 2.8, 2.9 (Squad Intelligence) | 🔲 Planned |
+| **Sprint 74+** | Tier 3 | 🔲 Backlog |
 
 ---
 

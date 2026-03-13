@@ -74,9 +74,13 @@ export type AgentTemplate = (typeof AGENT_TEMPLATES)[number];
 // ── Route Registration ────────────────────────────────────────────────────────
 
 export function registerAgentRoutes(app: FastifyInstance, agents: AgentRepository, memoryRepo?: AgentMemoryRepository) {
-  // List agents
-  app.get('/agents', async () => {
-    return { data: agents.list() };
+  // List agents — systemPrompt stripped by default (opt-in via ?include=systemPrompt)
+  app.get<{ Querystring: { include?: string } }>('/agents', async (req) => {
+    const includeSystemPrompt = req.query.include?.split(',').includes('systemPrompt') ?? false;
+    const list = agents.list();
+    if (includeSystemPrompt) return { data: list };
+    // Strip systemPrompt from list response — it can be large and is sensitive
+    return { data: list.map(({ systemPrompt: _sp, ...rest }) => rest) };
   });
 
   // List agent templates (read-only, not stored in DB)

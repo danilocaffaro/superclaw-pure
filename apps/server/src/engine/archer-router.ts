@@ -10,8 +10,20 @@
 //
 // Also detects NEXUS v3 tags: [CLAIM], [DONE], [BLOCKED], [QA-PASS], [QA-FAIL]
 
-import type { SquadAgent } from './squad-bridge-runner.js';
 import { logger } from '../lib/logger.js';
+
+// ─── SquadAgent ────────────────────────────────────────────────────────────────
+//
+// Sprint 69 (Item 1.2): SquadAgent was previously imported from the now-deleted
+// squad-bridge-runner.ts. It is defined here since archer-router.ts is its only
+// consumer. If other modules need it in the future, extract to types/squad.ts.
+
+export interface SquadAgent {
+  id: string;
+  name: string;
+  emoji: string;
+  sessionKey: string;
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 

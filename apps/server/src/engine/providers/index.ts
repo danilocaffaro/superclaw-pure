@@ -138,6 +138,12 @@ export class ProviderRouter {
                 chatOptions.baseUrl = tokenData.endpoints.api;
               }
               console.log(`[copilot] Token exchanged OK, endpoint: ${chatOptions.baseUrl}`);
+              // Add required Copilot headers
+              chatOptions.extraHeaders = {
+                'Editor-Version': 'vscode/1.96.0',
+                'Editor-Plugin-Version': 'copilot/1.0.0',
+                'Copilot-Integration-Id': 'vscode-chat',
+              };
             }
           } else {
             console.error(`[copilot] Token exchange failed: ${tokenRes.status} ${await tokenRes.text().catch(() => '')}`);

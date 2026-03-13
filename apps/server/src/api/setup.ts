@@ -23,6 +23,24 @@ function computeNeedsSetup(_providers: ProviderConfig[], _agentCount: number, db
   return row?.value !== 'true';
 }
 
+/** Convert model ID to human-readable name (e.g. "claude-sonnet-4.6" → "Claude Sonnet 4.6") */
+function prettifyModelName(id: string): string {
+  return id
+    .replace(/^gpt-/i, 'GPT-')
+    .replace(/^claude-/i, 'Claude ')
+    .replace(/^gemini-/i, 'Gemini ')
+    .replace(/^grok-/i, 'Grok ')
+    .replace(/^o(\d)/, 'o$1')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/Gpt/g, 'GPT')
+    .replace(/\bMini\b/g, 'Mini')
+    .replace(/\bPro\b/g, 'Pro')
+    .replace(/\bFlash\b/g, 'Flash')
+    .replace(/\bPreview\b/g, 'Preview')
+    .trim();
+}
+
 /** Test a provider's API key by making a minimal LLM call */
 async function testProviderConnection(
   providerId: string,
@@ -136,10 +154,9 @@ async function testProviderConnection(
       return { success: true };
     }
 
-    // GitHub Copilot — verify the GitHub OAuth token is valid
+    // GitHub Copilot — verify GitHub OAuth token + discover available models
     if (providerId === 'github-copilot') {
       // The token from Device Flow is a GitHub OAuth token
-      // Verify it's valid by checking the GitHub user endpoint
       const ghRes = await fetch('https://api.github.com/user', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -148,18 +165,54 @@ async function testProviderConnection(
         },
         signal: AbortSignal.timeout(10000),
       });
-      if (ghRes.ok) return { success: true };
-      // Also try Copilot API directly (for pre-existing Copilot tokens)
-      const copilotRes = await fetch('https://api.githubcopilot.com/v1/models', {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (copilotRes.ok) return { success: true };
-      const body = await copilotRes.text();
-      return { success: false, error: `GitHub authentication failed (${ghRes.status}): ${body.slice(0, 200)}` };
+      if (!ghRes.ok) {
+        const body = await ghRes.text();
+        return { success: false, error: `GitHub authentication failed (${ghRes.status}): ${body.slice(0, 200)}` };
+      }
+
+      // Exchange GitHub token for Copilot session token, then discover models
+      try {
+        const tokenRes = await fetch('https://api.github.com/copilot_internal/v2/token', {
+          headers: { Authorization: `token ${apiKey}`, 'Accept': 'application/json', 'User-Agent': 'SuperClaw/1.0' },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (tokenRes.ok) {
+          const tokenData = await tokenRes.json() as { token?: string };
+          if (tokenData.token) {
+            const modelsRes = await fetch('https://api.githubcopilot.com/models', {
+              headers: {
+                Authorization: `Bearer ${tokenData.token}`,
+                'Accept': 'application/json',
+                'Editor-Version': 'vscode/1.96.0',
+                'Editor-Plugin-Version': 'copilot/1.0.0',
+                'Copilot-Integration-Id': 'vscode-chat',
+              },
+              signal: AbortSignal.timeout(10000),
+            });
+            if (modelsRes.ok) {
+              const modelsData = await modelsRes.json() as Array<{ id: string; name?: string }> | { data?: Array<{ id: string; name?: string }> };
+              const modelList = Array.isArray(modelsData) ? modelsData : (modelsData as { data?: Array<{ id: string }> }).data ?? [];
+              // Filter out embedding/non-chat models, deduplicate, and remove dated versions
+              const chatModels = [...new Set(
+                modelList
+                  .map(m => m.id)
+                  .filter(id =>
+                    !id.includes('embedding') &&
+                    !id.includes('ada-002') &&
+                    !/-\d{4}-\d{2}-\d{2}/.test(id) && // remove dated versions like gpt-4o-2024-08-06
+                    !id.includes('-0613') && // remove old dated suffix
+                    !id.includes('-0125') &&
+                    id !== 'gpt-3.5-turbo'  // too old
+                  )
+              )];
+              if (chatModels.length > 0) {
+                return { success: true, models: chatModels };
+              }
+            }
+          }
+        }
+      } catch { /* Fallback to defaults if model discovery fails */ }
+      return { success: true };
     }
 
     // Custom / generic OpenAI-compatible provider
@@ -342,7 +395,7 @@ export function registerSetupRoutes(
 
     // Build ModelConfig[] from discovered model names (simple format for runtime-discovered models)
     const discoveredModelConfigs = test.models?.map((m) => ({
-      id: m, name: m, provider: saveId,
+      id: m, name: prettifyModelName(m), provider: saveId,
       contextWindow: 128000, maxOutput: 8192,
       costPerMInput: 0, costPerMOutput: 0, capabilities: ['text'] as string[],
     }));

@@ -16,6 +16,7 @@ export interface ChatOptions {
   providerType: 'openai' | 'anthropic';
   temperature?: number;
   maxTokens?: number;
+  extraHeaders?: Record<string, string>;
 }
 
 export interface StreamDelta {
@@ -32,6 +33,7 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
   const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (opts.apiKey) headers['Authorization'] = `Bearer ${opts.apiKey}`;
+  if (opts.extraHeaders) Object.assign(headers, opts.extraHeaders);
 
   let res: Response;
   try {

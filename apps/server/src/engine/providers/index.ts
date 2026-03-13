@@ -24,14 +24,8 @@ export interface LLMMessage {
   tool_call_id?: string;
 }
 
-export interface LLMOptions {
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  stream?: boolean;
-  systemPrompt?: string;
-  tools?: unknown[];
-}
+export type { LLMOptions, ToolDefinition as LLMToolDefinition } from './types.js';
+import type { LLMOptions } from './types.js';
 
 export interface StreamChunk {
   type: 'text' | 'tool_call' | 'usage' | 'finish' | 'error';
@@ -41,8 +35,11 @@ export interface StreamChunk {
   args?: string;
   inputTokens?: number;
   outputTokens?: number;
+  tokensIn?: number;
+  tokensOut?: number;
   finishReason?: string;
   error?: string;
+  toolCall?: { id: string; name: string; arguments: string };
   // compat fields
   delta?: string;
   done?: boolean;
@@ -117,6 +114,7 @@ export class ProviderRouter {
         providerType,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
+        tools: options.tools,
       };
 
       // GitHub Copilot: exchange OAuth token for Copilot session token
@@ -164,8 +162,10 @@ export class ProviderRouter {
         for await (const event of streamChat(chatMessages, chatOptions)) {
           if (event.type === 'delta' && event.content) {
             yield { type: 'text', text: event.content };
+          } else if (event.type === 'tool_call' && event.toolCall) {
+            yield { type: 'tool_call', toolCall: event.toolCall };
           } else if (event.type === 'done') {
-            yield { type: 'finish', finishReason: 'stop' };
+            yield { type: 'finish', finishReason: 'stop', tokensIn: event.tokensIn, tokensOut: event.tokensOut };
           } else if (event.type === 'error') {
             throw new Error(event.error);
           }

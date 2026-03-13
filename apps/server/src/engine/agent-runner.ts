@@ -165,10 +165,18 @@ export async function* runAgent(
     logger.debug({ err: e }, '[agent-runner] Memory injection failed, continuing without memory');
   }
 
-  // ── 2.7 Inject runtime context (model, provider, capabilities) ──────────────
+  // ── 2.7 Prepare tools (needed for runtime context) ──────────────────────────
+  const { tools: enabledTools, byName: toolsByName } = getToolsForAgent(agentConfig.tools);
+  const toolDefs = toolsToLLMDefinitions(enabledTools);
+
+  // ── 2.8 Inject runtime context (model, provider, capabilities) ──────────────
   const runtimeModel = agentConfig.modelId || 'unknown';
   const runtimeProvider = agentConfig.providerId || 'unknown';
-  const runtimeContext = `\n\n[Runtime Info]\nModel: ${runtimeModel}\nProvider: ${runtimeProvider}\nDate: ${new Date().toISOString().split('T')[0]}`;
+  const toolNames = enabledTools.map(t => t.definition.name);
+  const capabilitiesLine = toolNames.length > 0
+    ? `\nCapabilities: You have tools available including: ${toolNames.join(', ')}. Use them proactively when they help answer the user's request.`
+    : '';
+  const runtimeContext = `\n\n[Runtime Info]\nModel: ${runtimeModel}\nProvider: ${runtimeProvider}\nDate: ${new Date().toISOString().split('T')[0]}${capabilitiesLine}`;
   systemPrompt = systemPrompt + runtimeContext;
 
   // ── 3. Build messages array ─────────────────────────────────────────────────
@@ -180,10 +188,6 @@ export async function* runAgent(
   // Working messages list — mutable during the agentic loop
   // freshMessages already includes the user message saved in step 2
   const messages: LLMMessage[] = [...historyMessages];
-
-  // ── 4. Prepare tools ─────────────────────────────────────────────────────────
-  const { tools: enabledTools, byName: toolsByName } = getToolsForAgent(agentConfig.tools);
-  const toolDefs = toolsToLLMDefinitions(enabledTools);
 
   // ── 5. Signal start ──────────────────────────────────────────────────────────
   yield { event: 'message.start', data: { sessionId, agentId: agentConfig.id } };
@@ -256,10 +260,15 @@ export async function* runAgent(
 
         } else if (chunk.type === 'tool_call') {
           // ── 7b. Tool call detected ───────────────────────────────────────
-          const toolInput = ((chunk as unknown as { input?: Record<string, unknown> }).input ?? {}) as Record<string, unknown>;
+          const tc = chunk.toolCall ?? { id: chunk.id ?? '', name: chunk.name ?? '', arguments: '{}' };
+          let toolInput: Record<string, unknown> = {};
+          try { toolInput = JSON.parse(tc.arguments); } catch { /* use empty */ }
+          if (!toolInput || typeof toolInput !== 'object') {
+            toolInput = ((chunk as unknown as { input?: Record<string, unknown> }).input ?? {}) as Record<string, unknown>;
+          }
           pendingToolCalls.push({
-            id: chunk.id ?? '',
-            name: chunk.name ?? '',
+            id: tc.id || chunk.id || '',
+            name: tc.name || chunk.name || '',
             input: toolInput,
           });
           yield {

@@ -17,14 +17,16 @@ export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
   extraHeaders?: Record<string, string>;
+  tools?: Array<{ name: string; description: string; parameters: Record<string, unknown> }>;
 }
 
 export interface StreamDelta {
-  type: 'delta' | 'done' | 'error';
+  type: 'delta' | 'done' | 'error' | 'tool_call';
   content?: string;
   tokensIn?: number;
   tokensOut?: number;
   error?: string;
+  toolCall?: { id: string; name: string; arguments: string };
 }
 
 // ─── OpenAI-Compatible Streaming ────────────────────────────────────────
@@ -50,6 +52,12 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
         max_tokens: opts.maxTokens ?? 4096,
         stream: true,
         stream_options: { include_usage: true },
+        ...(opts.tools && opts.tools.length > 0 ? {
+          tools: opts.tools.map(t => ({
+            type: 'function',
+            function: { name: t.name, description: t.description, parameters: t.parameters },
+          })),
+        } : {}),
       }),
     });
   } catch (err: any) {
@@ -71,6 +79,7 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
   const decoder = new TextDecoder();
   let buffer = '';
   let tokensIn = 0, tokensOut = 0;
+  const pendingToolCalls: Array<{ id: string; name: string; arguments: string } | undefined> = [];
 
   try {
     while (true) {
@@ -90,8 +99,31 @@ async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncG
         }
         try {
           const data = JSON.parse(payload);
-          const delta = data.choices?.[0]?.delta?.content;
-          if (delta) yield { type: 'delta', content: delta };
+          const choice = data.choices?.[0];
+          const delta = choice?.delta;
+          // Text content
+          if (delta?.content) yield { type: 'delta', content: delta.content };
+          // Tool calls (streamed in chunks)
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls as Array<{ index: number; id?: string; function?: { name?: string; arguments?: string } }>) {
+              if (tc.function?.name) {
+                // First chunk of a tool call — accumulate in pendingToolCalls
+                if (!pendingToolCalls[tc.index]) {
+                  pendingToolCalls[tc.index] = { id: tc.id ?? '', name: tc.function.name, arguments: tc.function.arguments ?? '' };
+                } else {
+                  pendingToolCalls[tc.index]!.arguments += tc.function.arguments ?? '';
+                }
+              } else if (tc.function?.arguments && pendingToolCalls[tc.index]) {
+                pendingToolCalls[tc.index]!.arguments += tc.function.arguments;
+              }
+            }
+          }
+          // Finish reason — emit accumulated tool calls
+          if (choice?.finish_reason === 'tool_calls' || choice?.finish_reason === 'stop') {
+            for (const ptc of pendingToolCalls) {
+              if (ptc) yield { type: 'tool_call', toolCall: ptc };
+            }
+          }
           // Track usage if provided
           if (data.usage) {
             tokensIn = data.usage.prompt_tokens ?? tokensIn;

@@ -11,7 +11,6 @@ const AppearanceTab = lazy(() => import('./settings/AppearanceTab'));
 const ProvidersTab = lazy(() => import('./settings/ProvidersTab'));
 const ModelsTab = lazy(() => import('./settings/ModelsTab'));
 const MCPTab = lazy(() => import('./settings/MCPTab'));
-const SkillsTab = lazy(() => import('./settings/SkillsTab'));
 const KeybindingsTab = lazy(() => import('./settings/KeybindingsTab'));
 const AgentsTab = lazy(() => import('./settings/AgentsTab'));
 const SecurityTab = lazy(() => import('./settings/SecurityTab'));
@@ -31,7 +30,6 @@ const NAV_ITEMS: { key: SettingsTab; icon: string; label: string }[] = [
   { key: 'agents', icon: '🧑💼', label: 'Agents' },
   { key: 'mcp', icon: '🔗', label: 'MCP Servers' },
   { key: 'skills', icon: '⚡', label: 'Skills' },
-  { key: 'marketplace', icon: '🏪', label: 'Marketplace' },
   { key: 'keybindings', icon: '⌨️', label: 'Keybindings' },
   { key: 'security', icon: '🔒', label: 'Security' },
   { key: 'data-storage', icon: '💾', label: 'Data & Storage' },
@@ -80,8 +78,6 @@ export default function SettingsPanel() {
       case 'mcp':
         return <MCPTab />;
       case 'skills':
-        return <SkillsTab />;
-      case 'marketplace':
         return <MarketplacePanel />;
       case 'keybindings':
         return <KeybindingsTab />;

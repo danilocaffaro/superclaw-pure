@@ -11,7 +11,6 @@ export type SettingsTab =
   | 'gateways'
   | 'mcp'
   | 'skills'
-  | 'marketplace'
   | 'keybindings'
   | 'security'
   | 'data-storage'

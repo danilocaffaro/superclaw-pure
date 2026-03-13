@@ -418,6 +418,9 @@ export function initDatabase(): Database.Database {
   if (!agentCols.includes('fallback_providers')) {
     db.exec("ALTER TABLE agents ADD COLUMN fallback_providers TEXT DEFAULT '[]'");
   }
+  if (!agentCols.includes('max_tool_iterations')) {
+    db.exec("ALTER TABLE agents ADD COLUMN max_tool_iterations INTEGER DEFAULT NULL");
+  }
 
   // B056: Ensure tasks table exists (may be missing in fresh installs)
   db.exec(`

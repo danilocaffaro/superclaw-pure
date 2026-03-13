@@ -38,6 +38,7 @@ export interface AgentConfig {
   modelId: string;
   temperature?: number;
   maxTokens?: number;
+  maxToolIterations?: number; // per-agent override (default: TOOL_LIMITS.MAX_TOOL_ITERATIONS)
   tools?: string[]; // tool names to enable (undefined = all tools)
   fallbackProviders?: string[]; // ordered fallback provider IDs
 }
@@ -109,10 +110,9 @@ interface PendingToolCall {
 // ─── Cost estimation ─────────────────────────────────────────────────────────
 
 import { estimateTokenCost } from '../config/pricing.js';
+import { TOOL_LIMITS } from '../config/defaults.js';
 
 // ─── Core agentic loop ────────────────────────────────────────────────────────
-
-const MAX_TOOL_ITERATIONS = 40;
 
 export async function* runAgent(
   sessionId: string,
@@ -243,7 +243,8 @@ export async function* runAgent(
   }
 
   // ── 7. Agentic loop ──────────────────────────────────────────────────────────
-  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+  const maxIterations = agentConfig.maxToolIterations ?? TOOL_LIMITS.MAX_TOOL_ITERATIONS;
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
     const llmOptions: LLMOptions = {
       model: agentConfig.modelId,
       temperature: agentConfig.temperature,
@@ -437,7 +438,7 @@ export async function* runAgent(
     messages.push(...toolResultMessages);
 
     // Guard: if we've hit the max, break before the next LLM call
-    if (iteration === MAX_TOOL_ITERATIONS - 1) {
+    if (iteration === maxIterations - 1) {
       yield {
         event: 'message.delta',
         data: { text: '\n\n[Max tool iterations reached. Stopping.]' },

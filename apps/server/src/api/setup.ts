@@ -123,6 +123,37 @@ async function testProviderConnection(
       return { success: true };
     }
 
+    // GitHub Copilot — OpenAI-compatible, uses models endpoint to verify
+    if (providerId === 'github-copilot') {
+      const url = baseUrl || 'https://api.githubcopilot.com';
+      const res = await fetch(`${url}/v1/models`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) return { success: true };
+      // Copilot API may return 401 for OAuth tokens that need refresh
+      // Try chat endpoint as fallback
+      const chatRes = await fetch(`${url}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          max_tokens: 1,
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (chatRes.ok || chatRes.status === 404) return { success: true };
+      const body = await chatRes.text();
+      return { success: false, error: `Copilot API returned ${chatRes.status}: ${body.slice(0, 200)}` };
+    }
+
     // Custom / generic OpenAI-compatible provider
     if (providerId === 'custom') {
       if (!baseUrl) return { success: false, error: 'Base URL is required for custom providers' };

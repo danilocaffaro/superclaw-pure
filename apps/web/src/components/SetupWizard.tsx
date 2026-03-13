@@ -1000,10 +1000,32 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                     </div>
                   ) : activeProvider === 'github-copilot' ? (
                     <CopilotAuthPanel
-                      onToken={(token) => {
+                      onToken={async (token) => {
                         setApiKeyInput(token);
-                        setTestStatus('success');
+                        setTestStatus('testing');
                         setTestError('');
+                        // Auto-save provider to backend
+                        try {
+                          const res = await fetch(`${API}/setup/provider`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ providerId: 'github-copilot', apiKey: token }),
+                          });
+                          const json = await res.json() as { data?: { success: boolean; error?: string } };
+                          if (json.data?.success) {
+                            setTestStatus('success');
+                            setConfiguredProviders((prev) => new Set([...prev, 'github-copilot']));
+                            const statusRes = await fetch(`${API}/setup/status`);
+                            const statusJson = await statusRes.json() as { data: { providers: ProviderInfo[] } };
+                            setProviders(statusJson.data.providers);
+                          } else {
+                            setTestStatus('error');
+                            setTestError(json.data?.error ?? 'Failed to save provider');
+                          }
+                        } catch (err) {
+                          setTestStatus('error');
+                          setTestError((err as Error).message);
+                        }
                       }}
                     />
                   ) : activeProvider === 'custom' ? (

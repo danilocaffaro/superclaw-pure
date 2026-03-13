@@ -73,50 +73,6 @@ export function initDatabase(): Database.Database {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- B063: sprints, debates, debate_entries tables are unused (no repository, no API)
-    -- Kept for backward compat with existing DBs but not created in new installs
-    -- CREATE TABLE IF NOT EXISTS sprints (...)
-    -- CREATE TABLE IF NOT EXISTS debates (...)
-    -- CREATE TABLE IF NOT EXISTS debate_entries (...)
-    -- 
-    --     CREATE TABLE IF NOT EXISTS tasks (
-    --       id TEXT PRIMARY KEY,
-    --       session_id TEXT,
-    --       squad_id TEXT,
-    --       title TEXT NOT NULL,
-    --       description TEXT DEFAULT '',
-    --       status TEXT DEFAULT 'todo' CHECK(status IN ('todo','doing','review','done')),
-    --       priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high','critical')),
-    --       assigned_agent_id TEXT,
-    --       tags TEXT DEFAULT '[]',
-    --       sort_order INTEGER DEFAULT 0,
-    --       completed_at TEXT,
-    --       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    --       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    --     );
-    -- 
-    --     CREATE TABLE IF NOT EXISTS debates (
-    --       id TEXT PRIMARY KEY,
-    --       session_id TEXT NOT NULL REFERENCES sessions(id),
-    --       squad_id TEXT,
-    --       topic TEXT NOT NULL,
-    --       status TEXT DEFAULT 'active',
-    --       resolution TEXT DEFAULT '',
-    --       rounds INTEGER DEFAULT 0,
-    --       max_rounds INTEGER DEFAULT 3,
-    --       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    --     );
-    -- 
-    --     CREATE TABLE IF NOT EXISTS debate_entries (
-    --       id TEXT PRIMARY KEY,
-    --       debate_id TEXT NOT NULL REFERENCES debates(id),
-    --       agent_id TEXT NOT NULL,
-    --       round INTEGER NOT NULL,
-    --       position TEXT NOT NULL,
-    --       content TEXT NOT NULL,
-    --       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    --     );
-
     CREATE TABLE IF NOT EXISTS providers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -379,20 +335,25 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_squad_events_squad ON squad_events(squad_id);
 
     -- ── Gateways (B046 — Sprint 49) ──────────────────────────────────────────
-    CREATE TABLE IF NOT EXISTS gateways (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      url TEXT NOT NULL,
-      tunnel_port INTEGER,
-      tunnel_host TEXT DEFAULT '127.0.0.1',
-      ssh_target TEXT,
-      enabled INTEGER DEFAULT 1,
-      status TEXT DEFAULT 'disconnected' CHECK(status IN ('connected','disconnected','error')),
-      last_health_at DATETIME,
-      last_error TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    -- REMOVED (Sprint 71): gateways table is orphan — Gateway feature was
+    -- removed in the SuperClaw Pure fork. Zero SQL queries reference this table.
+    -- Keeping commented for existing DB backward compat (table will remain in
+    -- DBs that already have it; it's harmless).
+    --
+    -- CREATE TABLE IF NOT EXISTS gateways (
+    --   id TEXT PRIMARY KEY,
+    --   name TEXT NOT NULL,
+    --   url TEXT NOT NULL,
+    --   tunnel_port INTEGER,
+    --   tunnel_host TEXT DEFAULT '127.0.0.1',
+    --   ssh_target TEXT,
+    --   enabled INTEGER DEFAULT 1,
+    --   status TEXT DEFAULT 'disconnected' CHECK(status IN ('connected','disconnected','error')),
+    --   last_health_at DATETIME,
+    --   last_error TEXT,
+    --   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    --   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    -- );
 
     -- B054: Shared links for external/guest chat access
     CREATE TABLE IF NOT EXISTS shared_links (

@@ -308,4 +308,28 @@ export function registerProviderRoutes(app: FastifyInstance, repo: ProviderRepos
       });
     }
   });
+
+  // ----------------------------------------------------------
+  // Aliases: /providers → /config/providers (backward compat)
+  // These mirror the canonical routes above so that any client
+  // hitting /api/providers still gets JSON instead of SPA HTML.
+  // ----------------------------------------------------------
+  app.get('/providers', async (_req, reply) => {
+    try {
+      const providers = repo.list();
+      return reply.send({ data: providers });
+    } catch (err) {
+      return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: (err as Error).message } });
+    }
+  });
+
+  app.get<{ Params: { id: string } }>('/providers/:id', async (req, reply) => {
+    try {
+      const provider = repo.get(req.params.id);
+      if (!provider) return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Provider not found' } });
+      return reply.send(provider);
+    } catch (err) {
+      return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: (err as Error).message } });
+    }
+  });
 }

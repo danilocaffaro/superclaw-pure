@@ -208,6 +208,22 @@ async function main() {
     },
   });
 
+  // ─── Path Sanitization Hook ────────────────────────────────────────────
+  // Reject requests with path traversal sequences or SQL-injection-like
+  // characters in the URL path. This fires BEFORE routing so malformed URLs
+  // get a clean 400 instead of a connection reset.
+  app.addHook('onRequest', async (req, reply) => {
+    const rawPath = req.url.split('?')[0];
+    // Block path traversal
+    if (rawPath.includes('..') || rawPath.includes('%2e%2e') || rawPath.includes('%2E%2E')) {
+      return reply.status(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid path' } });
+    }
+    // Block SQL-injection characters in path segments (' ; -- are not valid in UUIDs/slugs)
+    if (/['"`;]/.test(rawPath)) {
+      return reply.status(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid characters in path' } });
+    }
+  });
+
   // ─── Security Headers ───────────────────────────────────────────────────
   app.addHook('onSend', async (_req, reply) => {
     for (const [header, value] of Object.entries(SECURITY_HEADERS)) {

@@ -102,12 +102,21 @@ export function registerSessionRoutes(app: FastifyInstance) {
       provider_id?: string;
       model_id?: string;
       agent_id?: string;
+      agentId?: string; // camelCase alias — normalised to agent_id below
       mode?: string;
       squad_id?: string;
+      squadId?: string; // camelCase alias — normalised to squad_id below
     };
   }>('/sessions', async (req, reply) => {
     try {
-      const session = sm.createSession(req.body ?? {});
+      const body = req.body ?? {};
+      // Normalise camelCase → snake_case so frontend sending agentId/squadId still works
+      const normalised = {
+        ...body,
+        agent_id: body.agent_id ?? body.agentId ?? '',
+        squad_id: body.squad_id ?? body.squadId ?? '',
+      };
+      const session = sm.createSession(normalised);
       return reply.status(201).send({ data: session });
     } catch (err) {
       return reply.status(500).send({

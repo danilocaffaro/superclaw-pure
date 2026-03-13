@@ -199,6 +199,7 @@ export async function dispatchToExternalAgent(
         'Authorization': `Bearer ${agent.outboundToken}`,
         'X-SuperClaw-Request-Id': requestId,
         'X-SuperClaw-Agent-Tier': agent.tier,
+        'X-SuperClaw-Agent-Id': agent.id,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,

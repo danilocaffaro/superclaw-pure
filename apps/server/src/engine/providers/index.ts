@@ -112,6 +112,32 @@ export class ProviderRouter {
         maxTokens: options.maxTokens,
       };
 
+      // GitHub Copilot: exchange OAuth token for Copilot session token
+      if (providerId === 'github-copilot' && chatOptions.apiKey) {
+        try {
+          const tokenRes = await fetch('https://api.github.com/copilot_internal/v2/token', {
+            headers: {
+              Authorization: `Bearer ${chatOptions.apiKey}`,
+              'Accept': 'application/json',
+              'User-Agent': 'SuperClaw/1.0',
+            },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json() as { token?: string; endpoints?: { api?: string } };
+            if (tokenData.token) {
+              chatOptions.apiKey = tokenData.token;
+              // Use the endpoint from the token response if available
+              if (tokenData.endpoints?.api) {
+                chatOptions.baseUrl = tokenData.endpoints.api;
+              }
+            }
+          }
+        } catch {
+          // Fall through with original token
+        }
+      }
+
       // Inject system prompt as first message if provided
       if (options.systemPrompt) {
         chatMessages.unshift({ role: 'system', content: options.systemPrompt });

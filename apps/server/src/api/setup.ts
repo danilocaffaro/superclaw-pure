@@ -123,35 +123,30 @@ async function testProviderConnection(
       return { success: true };
     }
 
-    // GitHub Copilot — OpenAI-compatible, uses models endpoint to verify
+    // GitHub Copilot — verify the GitHub OAuth token is valid
     if (providerId === 'github-copilot') {
-      const url = baseUrl || 'https://api.githubcopilot.com';
-      const res = await fetch(`${url}/v1/models`, {
+      // The token from Device Flow is a GitHub OAuth token
+      // Verify it's valid by checking the GitHub user endpoint
+      const ghRes = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+          'User-Agent': 'SuperClaw/1.0',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (ghRes.ok) return { success: true };
+      // Also try Copilot API directly (for pre-existing Copilot tokens)
+      const copilotRes = await fetch('https://api.githubcopilot.com/v1/models', {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Accept': 'application/json',
         },
         signal: AbortSignal.timeout(10000),
       });
-      if (res.ok) return { success: true };
-      // Copilot API may return 401 for OAuth tokens that need refresh
-      // Try chat endpoint as fallback
-      const chatRes = await fetch(`${url}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          max_tokens: 1,
-          messages: [{ role: 'user', content: 'hi' }],
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (chatRes.ok || chatRes.status === 404) return { success: true };
-      const body = await chatRes.text();
-      return { success: false, error: `Copilot API returned ${chatRes.status}: ${body.slice(0, 200)}` };
+      if (copilotRes.ok) return { success: true };
+      const body = await copilotRes.text();
+      return { success: false, error: `GitHub authentication failed (${ghRes.status}): ${body.slice(0, 200)}` };
     }
 
     // Custom / generic OpenAI-compatible provider
@@ -427,10 +422,33 @@ export function registerSetupRoutes(
       if (agent.systemPrompt) msgs.push({ role: 'system', content: agent.systemPrompt });
       msgs.push({ role: 'user', content: message });
 
+      // GitHub Copilot: exchange OAuth token for Copilot session token
+      let resolvedApiKey = apiKey;
+      let resolvedBaseUrl = baseUrl;
+      if (providerId === 'github-copilot' && apiKey) {
+        try {
+          const tokenRes = await fetch('https://api.github.com/copilot_internal/v2/token', {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Accept': 'application/json',
+              'User-Agent': 'SuperClaw/1.0',
+            },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json() as { token?: string; endpoints?: { api?: string } };
+            if (tokenData.token) {
+              resolvedApiKey = tokenData.token;
+              if (tokenData.endpoints?.api) resolvedBaseUrl = tokenData.endpoints.api;
+            }
+          }
+        } catch { /* fall through */ }
+      }
+
       for await (const event of streamChat(msgs, {
         model: modelId,
-        baseUrl,
-        apiKey,
+        baseUrl: resolvedBaseUrl,
+        apiKey: resolvedApiKey,
         providerType: providerType as 'openai' | 'anthropic',
         temperature: agent.temperature ?? 0.7,
         maxTokens: 256,

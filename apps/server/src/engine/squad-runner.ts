@@ -169,6 +169,18 @@ async function* runExternalAgent(
     event: 'message.delta',
     data: { text: response, agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji },
   };
+
+  // Persist external agent response as assistant message (prevents blue-bubble bug)
+  try {
+    const sm = getSessionManager();
+    sm.addMessage(sessionId, {
+      role: 'assistant',
+      content: response,
+      agent_id: agent.id,
+    });
+  } catch (err) {
+    logger.error('[SquadRunner] Failed to persist external agent message: %s', (err as Error).message);
+  }
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────

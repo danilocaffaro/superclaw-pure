@@ -144,9 +144,10 @@ export function MessageBubble({ msg }: { msg: Message }) {
   );
 
   // Detect agent messages that arrived as role:user (e.g. via sessions_send from Alice as PO)
-  // Pattern: starts with agent emoji + text, or contains PO consolidation markers
+  // Pattern: starts with agent emoji + text, contains PO consolidation markers, or is squad context
   const isAgentMasqueradingAsUser = isUser && (
-    /^(Excelente input|Consolidando como PO|Como PO,|🐕|🦊|🦾|🔭|🦄|\*\*DECISÃO)/.test(textForDetection)
+    /^(Excelente input|Consolidando como PO|Como PO,|🐕|🦊|🦾|🔭|🦄|\*\*DECISÃO)/.test(textForDetection) ||
+    /^Previous agent's analysis:/.test(textForDetection)
   );
   // Treat these as assistant bubbles
   const effectiveIsUser = isUser && !isAgentMasqueradingAsUser;

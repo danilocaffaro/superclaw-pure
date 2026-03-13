@@ -524,6 +524,14 @@ export function registerSetupRoutes(
         } catch { /* fall through */ }
       }
 
+      // Build extra headers for providers that need them
+      const extraHeaders: Record<string, string> = {};
+      if (providerId === 'github-copilot') {
+        extraHeaders['Editor-Version'] = 'vscode/1.96.0';
+        extraHeaders['Editor-Plugin-Version'] = 'copilot/1.0.0';
+        extraHeaders['Copilot-Integration-Id'] = 'vscode-chat';
+      }
+
       for await (const event of streamChat(msgs, {
         model: modelId,
         baseUrl: resolvedBaseUrl,
@@ -531,6 +539,7 @@ export function registerSetupRoutes(
         providerType: providerType as 'openai' | 'anthropic',
         temperature: agent.temperature ?? 0.7,
         maxTokens: 256,
+        extraHeaders: Object.keys(extraHeaders).length > 0 ? extraHeaders : undefined,
       })) {
         if (event.type === 'delta' && event.content) chunks.push(event.content);
         if (event.type === 'error') throw new Error(event.error);

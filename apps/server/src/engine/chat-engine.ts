@@ -30,7 +30,10 @@ export interface StreamDelta {
 // ─── OpenAI-Compatible Streaming ────────────────────────────────────────
 
 async function* streamOpenAI(messages: ChatMessage[], opts: ChatOptions): AsyncGenerator<StreamDelta> {
-  const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+  // GitHub Copilot enterprise endpoint uses /chat/completions (no /v1/ prefix)
+  const base = opts.baseUrl.replace(/\/$/, '');
+  const isCopilot = base.includes('githubcopilot.com');
+  const url = isCopilot ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (opts.apiKey) headers['Authorization'] = `Bearer ${opts.apiKey}`;
   if (opts.extraHeaders) Object.assign(headers, opts.extraHeaders);

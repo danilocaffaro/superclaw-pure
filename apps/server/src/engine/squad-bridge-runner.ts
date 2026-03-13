@@ -13,6 +13,8 @@ import { parseMentions, detectPullThrough, detectTags, buildArcherContext } from
 import type { MentionParseResult } from './archer-router.js';
 import { detectIntent } from './nexus-templates.js';
 import { resolveAgent, buildChatMessages, runSession } from './native-session-runner.js';
+import { dispatchToExternalAgent, type SquadMessageContext } from './external-agent-bridge.js';
+import { ExternalAgentRepository } from '../db/external-agents.js';
 import { logger } from '../lib/logger.js';
 import { initDatabase, AgentRepository, MessageRepository } from '../db/index.js';
 import { ProviderRepository } from '../db/providers.js';
@@ -92,15 +94,29 @@ function buildMessageWithHistory(
 }
 
 /**
- * Send a message to one agent via native engine and collect the full response.
+ * Send a message to one agent via native engine or external webhook.
+ * Automatically detects external agents and routes through the bridge.
  */
 async function sendToAgent(
   agent: SquadAgent,
   message: string,
   emit: (event: SSEEvent) => void,
   config: SquadBridgeConfig,
+  previousResponses: AgentResponse[] = [],
+  turnNumber = 1,
+  totalTurns = 1,
+  mentionResult?: MentionParseResult,
 ): Promise<string> {
   const db = initDatabase();
+
+  // Check if this is an external agent
+  const extRepo = new ExternalAgentRepository(db);
+  const extAgent = extRepo.getById(agent.id);
+  if (extAgent) {
+    return sendToExternalAgent(extAgent, agent, message, emit, config, previousResponses, turnNumber, totalTurns, mentionResult);
+  }
+
+  // Local agent — use native engine
   const agents = new AgentRepository(db);
   const providers = new ProviderRepository(db);
 
@@ -152,6 +168,58 @@ async function sendToAgent(
   }
 
   return fullText;
+}
+
+// ─── External Agent Dispatch ─────────────────────────────────────────────────
+
+async function sendToExternalAgent(
+  extAgent: import('../db/external-agents.js').ExternalAgent,
+  squadAgent: SquadAgent,
+  _message: string,
+  emit: (event: SSEEvent) => void,
+  config: SquadBridgeConfig,
+  previousResponses: AgentResponse[],
+  turnNumber: number,
+  totalTurns: number,
+  mentionResult?: MentionParseResult,
+): Promise<string> {
+  const ctx: SquadMessageContext = {
+    squadId: config.squadId,
+    squadName: config.squadName,
+    members: config.agents.map(a => ({
+      name: a.name,
+      emoji: a.emoji,
+      role: a.id === config.agents[0]?.id ? 'lead' : 'member',
+      isExternal: false, // Will be overridden by bridge
+    })),
+    userMessage: mentionResult?.cleanMessage ?? _message,
+    senderName: config.senderName ?? 'User',
+    previousResponses: previousResponses
+      .filter(r => r.text && !r.text.includes('is busy'))
+      .map(r => ({ agentName: r.agentName, agentEmoji: r.agentEmoji, text: r.text })),
+    turnNumber,
+    totalTurns,
+    wasMentioned: mentionResult?.targetAgents.some(a => a.id === squadAgent.id) ?? true,
+    nexusPhase: undefined,
+  };
+
+  // TODO: derive baseUrl from config or env
+  const baseUrl = process.env.SUPERCLAW_PUBLIC_URL ?? 'http://localhost:4070';
+
+  emit({
+    event: 'message.delta',
+    data: { text: `_Waiting for ${squadAgent.emoji} ${squadAgent.name} (external)..._\n`, agentId: squadAgent.id, isExternal: true },
+  });
+
+  const response = await dispatchToExternalAgent(extAgent, ctx, baseUrl);
+
+  // Emit the response
+  emit({
+    event: 'message.delta',
+    data: { text: response, agentId: squadAgent.id, agentName: squadAgent.name, agentEmoji: squadAgent.emoji, isExternal: true },
+  });
+
+  return response;
 }
 
 // ─── Message Persistence ────────────────────────────────────────────────────
@@ -282,7 +350,9 @@ async function runSequential(
       groupContext,
     );
 
-    const response = await sendToAgent(agent, fullMessage, emit, config);
+    const response = await sendToAgent(agent, fullMessage, emit, config,
+      responses.filter(r => r.text && !r.text.includes('is busy')),
+      turn, totalTurns, mentionResult);
 
     if (!response) {
       responses.push({ agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji, text: `_${agent.name} did not respond_` });
@@ -335,10 +405,10 @@ async function runParallel(
   }
 
   const results = await Promise.all(
-    targetAgents.map(agent => {
-      const groupContext = buildArcherContext(config, agent, 1, targetAgents.length, mentionResult);
+    targetAgents.map((agent, i) => {
+      const groupContext = buildArcherContext(config, agent, i + 1, targetAgents.length, mentionResult);
       const fullMessage = buildMessageWithHistory(mentionResult.cleanMessage, config.senderName ?? 'You', [], groupContext);
-      return sendToAgent(agent, fullMessage, emit, config);
+      return sendToAgent(agent, fullMessage, emit, config, [], i + 1, targetAgents.length, mentionResult);
     }),
   );
 

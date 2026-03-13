@@ -185,6 +185,7 @@ export function isPublicRoute(url: string): boolean {
 
   // Regex patterns for dynamic public routes
   if (/^\/channels\/[^/]+\/webhook$/.test(path)) return true; // Platform webhooks
+  if (/^\/external-agents\/[^/]+\/callback$/.test(path)) return true; // External agent callbacks (token-authed)
 
   for (const publicRoute of PUBLIC_ROUTES) {
     if (publicRoute.endsWith('/')) {

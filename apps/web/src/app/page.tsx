@@ -279,9 +279,13 @@ export default function HomePage() {
         {needsSetup ? (
           <SetupWizard onComplete={(agentId) => {
             setNeedsSetup(false);
-            if (agentId) {
-              useSessionStore.getState().createSession({ title: 'Welcome', agent_id: agentId });
-            }
+            // Refresh stores and auto-create session with the configured agent
+            void useAgentStore.getState().fetchAgents().then(() => {
+              void useSessionStore.getState().fetchSessions();
+              if (agentId) {
+                void useSessionStore.getState().createSession({ title: 'Welcome', agent_id: agentId });
+              }
+            });
           }} />
         ) : (
           <ErrorBoundary>
@@ -421,10 +425,11 @@ export default function HomePage() {
       {/* First-run Setup Wizard — full-screen overlay */}
       {needsSetup && <SetupWizard onComplete={(agentId) => {
         setNeedsSetup(false);
-        // Refresh stores and auto-create session with the configured agent
-        void useSessionStore.getState().fetchSessions().then(() => {
-          void useAgentStore.getState().fetchAgents();
-          void useSessionStore.getState().createSession(agentId ? { agent_id: agentId } : undefined);
+        // Refresh agents FIRST, then sessions, then create welcome session
+        void useAgentStore.getState().fetchAgents().then(() => {
+          void useSessionStore.getState().fetchSessions().then(() => {
+            void useSessionStore.getState().createSession(agentId ? { agent_id: agentId } : undefined);
+          });
         });
       }} />}
 

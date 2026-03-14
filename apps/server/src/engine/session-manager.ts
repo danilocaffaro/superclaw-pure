@@ -170,7 +170,7 @@ function rowToMessageInfo(row: MessageRow): MessageInfo {
 // ─── Compact threshold ────────────────────────────────────────────────────────
 
 const COMPACT_KEEP_LAST = 20;   // keep the N most-recent messages after compaction
-const COMPACT_MIN_TOTAL = 40;   // only compact when there are at least this many messages
+const COMPACT_MIN_TOTAL = 20;   // only compact when there are at least this many messages (Sprint 76: lowered 40→20)
 
 // ─── SessionManager ───────────────────────────────────────────────────────────
 

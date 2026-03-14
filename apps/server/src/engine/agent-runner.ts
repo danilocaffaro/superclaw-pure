@@ -13,6 +13,7 @@ import { AgentMemoryRepository } from '../db/agent-memory.js';
 import { getDb } from '../db/index.js';
 import { logger } from '../lib/logger.js';
 import { LoopDetector } from './loop-detector.js';
+import { touchSession } from './session-consolidator.js';
 
 // ─── SSE Event Types ──────────────────────────────────────────────────────────
 
@@ -479,17 +480,41 @@ export async function* runAgent(
   };
 
   // ── 10. Background memory extraction (non-blocking) ───────────────────────
-  // Extract durable facts from the user message + assistant response
+  // Extract durable facts from the user message + assistant response + tool outputs
   // Runs after the stream is done — never blocks the user
   try {
+    // Collect tool result content from the working messages (Sprint 76: Item 3)
+    const toolOutputTexts: string[] = [];
+    for (const m of messages) {
+      if (m.role === 'tool' && typeof m.content === 'string' && m.content.length > 30 && m.content.length < 5000) {
+        // Skip error outputs and trivial results
+        if (!m.content.startsWith('ERROR:') && !/^\s*\{?\s*"(ok|success)"\s*:\s*(true|false)\s*\}?\s*$/.test(m.content)) {
+          toolOutputTexts.push(m.content);
+        }
+      }
+    }
+    const toolOutputSummary = toolOutputTexts.length > 0
+      ? toolOutputTexts.slice(0, 5).join('\n---\n').slice(0, 8000)  // cap to 5 outputs, 8KB
+      : '';
+
     backgroundMemoryExtract(
       agentConfig.id,
       sessionId,
       userMessage,
       fullAssistantText,
+      toolOutputSummary,
     );
   } catch (e) {
     logger.debug({ err: e }, '[agent-runner] Background memory extraction failed (non-fatal)');
+  }
+
+  // ── 11. Session-end consolidation timer (Sprint 76) ───────────────────────
+  // Resets a 10-min inactivity timer. If idle fires, runs LLM extraction of
+  // the full session and stores durable facts in agent_memory.
+  try {
+    touchSession(agentConfig.id, sessionId);
+  } catch (e) {
+    logger.debug({ err: e }, '[agent-runner] Session consolidator touch failed (non-fatal)');
   }
 }
 
@@ -512,6 +537,7 @@ function backgroundMemoryExtract(
   sessionId: string,
   userMessage: string,
   assistantResponse: string,
+  toolOutputs: string = '',
 ): void {
   // Run async but don't await — fire-and-forget
   void (async () => {
@@ -581,10 +607,27 @@ function backgroundMemoryExtract(
           // Decisions (from assistant response = confirmed decisions)
           if (/(?:decided to|will use|chosen approach|going with|opted for|confirmed|agreed on)\b/i.test(lo) && lo.length < 300) {
             const key = `decision_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
-            repo.set(agentId, key, line.trim().slice(0, 300), 'decision', 0.7, undefined, {
+            repo.set(agentId, key, line.trim().slice(0, 300), 'decision', 0.85, undefined, {
               source: 'auto_extract', tags: ['from_assistant'],
             });
             extractedCount.decisions++;
+          }
+        }
+      }
+
+      // ── Extract from tool outputs (Sprint 76 Item 3) ───────────────────────
+      // Rich data from tool calls: API responses, code analysis, web content
+      if (toolOutputs && toolOutputs.length > 30) {
+        for (const line of toolOutputs.split(/\n/).filter(l => l.trim().length > 20)) {
+          const lo = line.toLowerCase().trim();
+
+          // Facts from tool outputs: version numbers, status, configurations
+          if (/(?:version|v\d+\.\d+|status|running|installed|configured|enabled|disabled|port \d+)\b/i.test(lo) && lo.length < 300) {
+            const key = `tool_fact_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+            repo.set(agentId, key, line.trim().slice(0, 300), 'fact', 0.75, undefined, {
+              source: 'auto_extract_tool', tags: ['from_tool_output'],
+            });
+            extractedCount.goals++; // reuse counter
           }
         }
       }

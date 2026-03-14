@@ -593,13 +593,13 @@ async function* runDebate(
         }, [agent.providerId])) {
           if (chunk.type === 'text') {
             response += chunk.text;
-            yield { event: 'message.delta', data: { text: chunk.text, agentId: agent.id } };
+            yield { event: 'message.delta', data: { text: chunk.text, agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji ?? '🤖' } };
           }
         }
         turnMgr.recordTurn(agent.id, 'propose');
       } catch (err) {
         logger.warn(`[SquadRunner] Agent ${agent.id} debate phase failed: %s`, (err as Error).message);
-        yield { event: 'message.delta', data: { text: `\n[${agent.name} failed to respond]\n`, agentId: agent.id } };
+        yield { event: 'message.delta', data: { text: `\n[${agent.name} failed to respond]\n`, agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji ?? '🤖' } };
       }
     }
 
@@ -700,13 +700,13 @@ async function* runDebate(
           temperature: 0.5,
         }, [resolverAgent.providerId])) {
           if (chunk.type === 'text') {
-            yield { event: 'message.delta', data: { text: chunk.text } };
+            yield { event: 'message.delta', data: { text: chunk.text, agentId: resolverAgent.id, agentName: resolverAgent.name, agentEmoji: resolverAgent.emoji ?? '🤖' } };
           }
         }
       } catch (err) {
         yield {
           event: 'message.delta',
-          data: { text: `\n[Resolution synthesis failed: ${(err as Error).message}]\n` },
+          data: { text: `\n[Resolution synthesis failed: ${(err as Error).message}]\n`, agentId: resolverAgent.id, agentName: resolverAgent.name, agentEmoji: resolverAgent.emoji ?? '🤖' },
         };
       }
 
@@ -837,9 +837,22 @@ async function* runSequential(
     let response = '';
     const worker = tryGetWorker(agent);
 
+    // Identity fields injected into every message.delta so the frontend
+    // can always resolve the agent name/emoji (fixes B-UUID).
+    const identity = { agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji ?? '🤖' };
+
+    /** Enrich a passthrough event with agent identity when the upstream emitter omits it. */
+    function enrichEvent(event: SSEEvent): SSEEvent {
+      if (event.event === 'message.delta' || event.event === 'message.finish' || event.event === 'message.start') {
+        const d = event.data as Record<string, unknown>;
+        return { ...event, data: { ...identity, ...d } };
+      }
+      return event;
+    }
+
     if (isExternalAgent(agent)) {
       for await (const event of runExternalAgent(sessionId, prompt, agent, config, previousResponses, turnInPass)) {
-        yield event;
+        yield enrichEvent(event);
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
           if (typeof d.text === 'string' && !d.isHeader) response += d.text;
@@ -847,7 +860,7 @@ async function* runSequential(
       }
     } else if (worker && turnMgr.canSpeak(agent.id)) {
       for await (const event of worker.processUserMessage(sessionId, prompt, { skipPersistUserMessage: true })) {
-        yield event;
+        yield enrichEvent(event);
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
           if (typeof d.text === 'string') response += d.text;
@@ -856,7 +869,7 @@ async function* runSequential(
       turnMgr.recordTurn(agent.id);
     } else {
       for await (const event of runAgent(sessionId, prompt, agent, { skipPersistUserMessage: true })) {
-        yield event;
+        yield enrichEvent(event);
         if (event.event === 'message.delta') {
           const d = event.data as Record<string, unknown>;
           if (typeof d.text === 'string') response += d.text;

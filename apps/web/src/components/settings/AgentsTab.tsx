@@ -5,6 +5,7 @@ import { SectionTitle } from './shared';
 import { AgentCard } from './agents/AgentCard';
 import { AgentEditModal } from './agents/AgentEditModal';
 import { InviteAgentModal } from './agents/InviteAgentModal';
+import ExternalAgentsPanel from './ExternalAgentsPanel';
 import type { AgentRow, WorkerAgentStatus, PoolStatusData } from './agents/types';
 
 export default function AgentsTab() {
@@ -336,6 +337,12 @@ export default function AgentsTab() {
           onConnected={() => { setShowInvite(false); load(); }}
         />
       )}
+
+      {/* M-1: External Agents section */}
+      <div style={{ marginTop: 24 }}>
+        <SectionTitle title="External Agents" desc="Manage agents connected via webhook (OpenClaw, custom bots, third-party AI)." />
+        <ExternalAgentsPanel />
+      </div>
 
       <style>{`
         @keyframes pulse {

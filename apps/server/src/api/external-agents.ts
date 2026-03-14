@@ -17,8 +17,10 @@
 
 import type { FastifyInstance } from 'fastify';
 import type Database from 'better-sqlite3';
+import crypto from 'node:crypto';
 import { ExternalAgentRepository, type ExternalAgentCreateInput, type ExternalAgentTier, type ExternalAgentStatus } from '../db/external-agents.js';
 import { generateProtocolPack } from '../engine/external-agent-bridge.js';
+import { broadcastSSE } from './sse.js';
 import { logger } from '../lib/logger.js';
 
 // ─── Pending callback storage (for async responses) ────────────────────────────
@@ -118,7 +120,7 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
   // This is called by the external agent to deliver its response.
   // Auth: Bearer token must match the agent's inboundToken.
 
-  app.post<{ Params: { id: string }; Body: { requestId: string; text: string; actions?: unknown[] } }>(
+  app.post<{ Params: { id: string }; Body: { requestId: string; text: string; sessionId?: string; actions?: unknown[] } }>(
     '/external-agents/:id/callback',
     { config: { rateLimit: { max: 500, timeWindow: '1 minute' } } },
     async (req, reply) => {
@@ -133,7 +135,7 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
         return reply.status(401).send({ error: 'Invalid token' });
       }
 
-      const { requestId, text } = req.body;
+      const { requestId, text, sessionId } = req.body;
       if (!requestId || !text) {
         return reply.status(400).send({ error: 'requestId and text are required' });
       }
@@ -145,6 +147,19 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
         pending.resolve(text);
         pendingCallbacks.delete(requestId);
       }
+
+      // M-4: Broadcast to frontend via SSE (wildcard + session-specific)
+      broadcastSSE(sessionId ?? null, 'message.complete', {
+        id: requestId,
+        session_id: sessionId,
+        role: 'assistant',
+        content: text,
+        agentId: agent.id,
+        agentName: agent.name,
+        agentEmoji: agent.emoji,
+        sender_type: 'external',
+        created_at: new Date().toISOString(),
+      });
 
       repo.markSeen(agent.id);
       logger.info('[ExternalAgent] Callback from %s, requestId=%s, %d chars', agent.name, requestId, text.length);
@@ -217,6 +232,50 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
       const msg = err instanceof Error ? err.message : String(err);
       return reply.status(502).send({ ok: false, error: msg.includes('abort') ? 'Timeout (10s)' : msg });
     }
+  });
+
+  // ── Rotate tokens ─────────────────────────────────────────────────────────
+
+  app.post<{ Params: { id: string }; Body: { tokenType?: 'inbound' | 'outbound' | 'both' } }>(
+    '/external-agents/:id/rotate-token',
+    async (req, reply) => {
+      const agent = repo.getById(req.params.id);
+      if (!agent) return reply.status(404).send({ error: 'External agent not found' });
+
+      const tokenType = req.body?.tokenType ?? 'both';
+      const newInbound = tokenType === 'outbound' ? undefined : crypto.randomBytes(32).toString('hex');
+      const newOutbound = tokenType === 'inbound' ? undefined : crypto.randomBytes(32).toString('hex');
+
+      const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+      const values: unknown[] = [];
+      if (newInbound) { updates.push('inbound_token = ?'); values.push(newInbound); }
+      if (newOutbound) { updates.push('outbound_token = ?'); values.push(newOutbound); }
+      values.push(req.params.id);
+
+      db.prepare(`UPDATE external_agents SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+      logger.info('[ExternalAgent] Tokens rotated for %s (type=%s)', agent.name, tokenType);
+      return {
+        data: {
+          ...(newInbound ? { inboundToken: newInbound } : {}),
+          ...(newOutbound ? { outboundToken: newOutbound } : {}),
+        },
+        _notice: 'Save these tokens — they will not be shown again.',
+      };
+    },
+  );
+
+  // ── Revoke tokens (deactivate agent) ──────────────────────────────────────
+
+  app.delete<{ Params: { id: string } }>('/external-agents/:id/token', async (req, reply) => {
+    const agent = repo.getById(req.params.id);
+    if (!agent) return reply.status(404).send({ error: 'External agent not found' });
+
+    db.prepare('UPDATE external_agents SET inbound_token = ?, outbound_token = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run('revoked', 'revoked', 'inactive', req.params.id);
+
+    logger.info('[ExternalAgent] Tokens revoked for %s — agent deactivated', agent.name);
+    return { ok: true, message: 'Tokens revoked. Agent deactivated.' };
   });
 
   logger.info('[API] External agent routes registered');

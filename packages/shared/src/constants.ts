@@ -1,6 +1,10 @@
-// SuperClaw constants
-export const SUPERCLAW_HOME = '~/.superclaw';
-export const SUPERCLAW_DB = 'superclaw.db';
+// HiveClaw constants (formerly SuperClaw Pure)
+export const HIVECLAW_HOME = '~/.hiveclaw';
+export const HIVECLAW_DB = 'hiveclaw.db';
+
+// Legacy aliases — backward compat during migration
+export const SUPERCLAW_HOME = HIVECLAW_HOME;
+export const SUPERCLAW_DB = HIVECLAW_DB;
 export const DEFAULT_SERVER_PORT = 4070;
 export const DEFAULT_WEB_PORT = 3200;
 export const OPENCLAW_WS_URL = 'ws://127.0.0.1:18789';

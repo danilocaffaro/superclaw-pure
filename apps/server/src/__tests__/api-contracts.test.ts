@@ -38,7 +38,7 @@ describe('API Endpoint Contracts', () => {
         engine: expect.any(String),
       };
       const mockResponse = {
-        path: '/home/user/.superclaw/superclaw.db',
+        path: '/home/user/.hiveclaw/hiveclaw.db',
         sizeBytes: 4096,
         sizeMB: 0.0,
         lastModified: '2026-03-09T00:00:00Z',

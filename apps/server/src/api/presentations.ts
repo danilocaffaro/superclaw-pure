@@ -20,7 +20,7 @@ interface Slide {
 interface Presentation {
   id: string;
   title: string;
-  theme: 'dark' | 'light' | 'superclaw';
+  theme: 'dark' | 'light' | 'hiveclaw';
   slides: Slide[];
   createdAt: string;
   updatedAt: string;
@@ -122,7 +122,7 @@ show(0);
 // ─── Route registration ───────────────────────────────────────────────────────
 
 export function registerPresentationRoutes(app: FastifyInstance): void {
-  const presDir = join(process.env.HOME ?? '/root', '.superclaw', 'presentations');
+  const presDir = join(process.env.HOME ?? '/root', '.hiveclaw', 'presentations');
   if (!existsSync(presDir)) mkdirSync(presDir, { recursive: true });
 
   // Load existing presentations from disk on startup
@@ -175,13 +175,13 @@ export function registerPresentationRoutes(app: FastifyInstance): void {
     const pres: Presentation = {
       id: randomUUID(),
       title,
-      theme: (theme as Presentation['theme']) ?? 'superclaw',
+      theme: (theme as Presentation['theme']) ?? 'hiveclaw',
       slides: [
         {
           id: randomUUID(),
           type: 'title',
           title,
-          content: 'Created with SuperClaw',
+          content: 'Created with HiveClaw',
         },
       ],
       createdAt: new Date().toISOString(),

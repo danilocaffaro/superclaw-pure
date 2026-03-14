@@ -1,5 +1,5 @@
 // ============================================================
-// SuperClaw Shared Types
+// HiveClaw Shared Types
 // ============================================================
 
 // --- Agent ---
@@ -158,7 +158,7 @@ export type SSEEvent =
   | { type: 'heartbeat' };
 
 // --- Config ---
-export interface SuperClawConfig {
+export interface HiveClawConfig {
   server: {
     port: number;
     host: string;

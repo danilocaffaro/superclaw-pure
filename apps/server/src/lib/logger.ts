@@ -1,5 +1,5 @@
 // ============================================================
-// Structured Logger — Pino-based logging for SuperClaw
+// Structured Logger — Pino-based logging for HiveClaw
 // ============================================================
 
 import pino from 'pino';

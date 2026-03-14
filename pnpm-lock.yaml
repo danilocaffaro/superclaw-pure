@@ -39,7 +39,7 @@ importers:
       '@fastify/rate-limit':
         specifier: ^10.3.0
         version: 10.3.0
-      '@superclaw/shared':
+      '@hiveclaw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       better-sqlite3:
@@ -88,7 +88,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@superclaw/shared':
+      '@hiveclaw/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@tailwindcss/postcss':

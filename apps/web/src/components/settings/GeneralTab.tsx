@@ -50,7 +50,7 @@ export default function GeneralTab() {
   const [config, setConfig] = useState<AppConfig>(() => {
     if (typeof window === 'undefined') return DEFAULTS;
     try {
-      const saved = localStorage.getItem('superclaw-app-config');
+      const saved = localStorage.getItem('hiveclaw-app-config');
       return saved ? { ...DEFAULTS, ...JSON.parse(saved) } : DEFAULTS;
     } catch { return DEFAULTS; }
   });
@@ -61,7 +61,7 @@ export default function GeneralTab() {
     setConfig(c => ({ ...c, [key]: val }));
 
   const handleSave = () => {
-    localStorage.setItem('superclaw-app-config', JSON.stringify(config));
+    localStorage.setItem('hiveclaw-app-config', JSON.stringify(config));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

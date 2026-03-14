@@ -177,7 +177,7 @@ export default function Sidebar() {
                     backgroundClip: 'text',
                   }}
                 >
-                  SuperClaw
+                  HiveClaw
                 </span>
               </div>
             )}

@@ -4,7 +4,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { logger } from '../lib/logger.js';
 
-const SKILLS_DIR = join(homedir(), '.superclaw', 'skills');
+const SKILLS_DIR = join(homedir(), '.hiveclaw', 'skills');
 
 interface SkillMeta {
   slug: string;

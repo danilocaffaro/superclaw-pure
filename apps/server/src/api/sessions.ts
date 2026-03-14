@@ -18,7 +18,7 @@ import { ProviderRepository } from '../db/providers.js';
 import { initDatabase } from '../db/index.js';
 import { SessionUsageRepository } from '../db/session-usage.js';
 import { handoffSession } from '../engine/session-handoff.js';
-import type { Agent } from '@superclaw/shared';
+import type { Agent } from '@hiveclaw/shared';
 import { ExternalAgentRepository } from '../db/external-agents.js';
 import { SquadMemberRepository } from '../db/squad-members.js';
 
@@ -299,10 +299,10 @@ export function registerSessionRoutes(app: FastifyInstance) {
       const agentRow = agentRepo.getById(agentId);
       agentConfig = agentRow
         ? agentRowToConfig(agentRow)
-        : { id: agentId, name: 'SuperClaw', ...DEFAULT_AGENT_CONFIG, providerId: getDefaultProviderId(), modelId: getDefaultModelId(getDefaultProviderId()) };
+        : { id: agentId, name: 'HiveClaw', ...DEFAULT_AGENT_CONFIG, providerId: getDefaultProviderId(), modelId: getDefaultModelId(getDefaultProviderId()) };
     } else {
       const defaultPid = getDefaultProviderId();
-      agentConfig = { id: 'default', name: 'SuperClaw', ...DEFAULT_AGENT_CONFIG, providerId: defaultPid, modelId: getDefaultModelId(defaultPid) };
+      agentConfig = { id: 'default', name: 'HiveClaw', ...DEFAULT_AGENT_CONFIG, providerId: defaultPid, modelId: getDefaultModelId(defaultPid) };
     }
 
     // ── Squad routing ──────────────────────────────────────────────────────────

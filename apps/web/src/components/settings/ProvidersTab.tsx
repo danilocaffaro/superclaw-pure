@@ -488,10 +488,10 @@ export default function ProvidersTab() {
       />
       <EngineProviders />
 
-      {/* Local API Keys — optional override stored in SuperClaw DB */}
+      {/* Local API Keys — optional override stored in HiveClaw DB */}
       <SectionTitle
         title="Local API Keys"
-        desc="API keys stored in SuperClaw database."
+        desc="API keys stored in HiveClaw database."
       />
       {PROVIDERS.map((p) => (
         <ProviderCard key={p.id} provider={p} />

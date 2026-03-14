@@ -149,7 +149,7 @@ export default function PublicChat({ token }: { token: string }) {
         <span style={{ fontSize: 24 }}>{info.agentEmoji}</span>
         <div>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{info.title}</div>
-          <div style={{ fontSize: 11, color: '#888' }}>Powered by SuperClaw</div>
+          <div style={{ fontSize: 11, color: '#888' }}>Powered by HiveClaw</div>
         </div>
       </div>
 

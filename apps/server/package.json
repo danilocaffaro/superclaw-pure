@@ -1,5 +1,5 @@
 {
-  "name": "@superclaw/server",
+  "name": "@hiveclaw/server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "@fastify/cors": "^11.0.0",
     "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^10.3.0",
-    "@superclaw/shared": "workspace:*",
+    "@hiveclaw/shared": "workspace:*",
     "better-sqlite3": "^11.8.0",
     "fast-glob": "^3.3.3",
     "fastify": "^5.3.0",

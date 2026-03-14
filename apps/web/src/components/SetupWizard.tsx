@@ -332,7 +332,7 @@ function CopilotAuthPanel({ onToken }: { onToken: (token: string) => void }) {
             🔐 Auto Login (recommended)
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted, #8b949e)', lineHeight: 1.5 }}>
-            Opens GitHub in your browser. Sign in and enter a code — SuperClaw handles the rest.
+            Opens GitHub in your browser. Sign in and enter a code — HiveClaw handles the rest.
             Requires an active GitHub Copilot subscription.
           </div>
         </div>
@@ -603,7 +603,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
       steps: [
         'Go to console.anthropic.com and sign up or log in',
         'Click Settings → API Keys → Create Key',
-        'Give it a name (e.g. "SuperClaw"), click Create',
+        'Give it a name (e.g. "HiveClaw"), click Create',
         'Copy the key (starts with sk-ant-…) and paste it below',
       ],
       url: 'https://console.anthropic.com/settings/keys',
@@ -871,7 +871,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 backgroundClip: 'text',
               }}
             >
-              Welcome to SuperClaw
+              Welcome to HiveClaw
             </h1>
             <p style={{ color: 'var(--text-muted, #8b949e)', fontSize: 16, marginTop: 12, lineHeight: 1.6, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
               Your personal AI assistant. Let&apos;s set things up.
@@ -1577,7 +1577,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   fontSize: 15,
                 }}
               >
-                {completing ? 'Loading…' : 'Launch SuperClaw 🚀'}
+                {completing ? 'Loading…' : 'Launch HiveClaw 🚀'}
               </button>
             </div>
           </div>

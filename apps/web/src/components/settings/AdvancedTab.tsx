@@ -122,7 +122,7 @@ export default function AdvancedTab() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {[
-            ['SuperClaw', appVersion],
+            ['HiveClaw', appVersion],
             ['Next.js', '15.x'],
             ['React', '19.x'],
           ].map(([name, ver]) => (

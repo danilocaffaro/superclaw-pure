@@ -54,7 +54,7 @@ function buildContactList(
   agents: { id: string; name: string }[],
   sessions: Session[],
 ): ContactEntry[] {
-  // Build session lookup: agent_id → session (prefer agent:X:main, then superclaw:)
+  // Build session lookup: agent_id → session (prefer agent:X:main, then hiveclaw:)
   const sessionByAgent = new Map<string, Session>();
   for (const s of sessions) {
     const id = s.id ?? '';
@@ -94,7 +94,7 @@ function buildContactList(
     if (a.updatedAt && !b.updatedAt) return -1;
     if (!a.updatedAt && b.updatedAt) return 1;
     if (a.updatedAt && b.updatedAt) return b.updatedAt - a.updatedAt;
-    // SuperClaw (main) always first among no-conversation contacts
+    // HiveClaw (main) always first among no-conversation contacts
     if (a.agentId === 'main') return -1;
     if (b.agentId === 'main') return 1;
     return a.name.localeCompare(b.name);
@@ -208,7 +208,7 @@ function ConversationsList() {
         borderBottom: '1px solid var(--border)', background: 'var(--surface)',
       }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-          SuperClaw
+          HiveClaw
         </h1>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
@@ -299,7 +299,7 @@ function ConversationsList() {
           }}>
             <div style={{ fontSize: 64 }}>✨</div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>
-              Welcome to SuperClaw
+              Welcome to HiveClaw
             </h2>
             <p style={{ fontSize: 15, textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
               Your personal AI assistant. Loading agents...

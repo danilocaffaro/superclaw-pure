@@ -5,8 +5,8 @@ import { mkdirSync } from 'fs';
 import { randomUUID } from 'crypto';
 import type { Tool, ToolInput, ToolOutput, ToolDefinition } from './types.js';
 
-const DB_DIR = join(homedir(), '.superclaw');
-const DB_PATH = join(DB_DIR, 'superclaw.db');
+const DB_DIR = join(homedir(), '.hiveclaw');
+const DB_PATH = join(DB_DIR, 'hiveclaw.db');
 
 function getDb(): Database.Database {
   mkdirSync(DB_DIR, { recursive: true });

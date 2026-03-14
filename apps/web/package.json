@@ -1,5 +1,5 @@
 {
-  "name": "@superclaw/web",
+  "name": "@hiveclaw/web",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@superclaw/shared": "workspace:*",
+    "@hiveclaw/shared": "workspace:*",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/dompurify": "^3.2.0",
     "dompurify": "^3.3.3",

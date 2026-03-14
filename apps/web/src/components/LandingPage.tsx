@@ -124,7 +124,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
               letterSpacing: '-0.02em',
             } as CSSProperties}
           >
-            SuperClaw
+            HiveClaw
           </h1>
 
           <p
@@ -188,7 +188,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
             </button>
 
             <a
-              href="https://github.com/niceclaw/superclaw"
+              href="https://github.com/niceclaw/hiveclaw"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -377,10 +377,10 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
         }}
       >
         <p style={{ margin: 0 }}>
-          Built with ❤️ by SuperClaw Team •{' '}
+          Built with ❤️ by HiveClaw Team •{' '}
           <span style={{ color: 'var(--lp-text)' }}>MIT License</span> •{' '}
           <a
-            href="https://github.com/niceclaw/superclaw"
+            href="https://github.com/niceclaw/hiveclaw"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'var(--lp-accent-start)', textDecoration: 'none' }}

@@ -199,10 +199,10 @@ describe('AgentMemoryRepository', () => {
   });
 
   it('should search across agents', () => {
-    repo.set('agent-1', 'project', 'SuperClaw is awesome', 'long_term');
-    repo.set('agent-2', 'note', 'SuperClaw v2 release', 'short_term');
+    repo.set('agent-1', 'project', 'HiveClaw is awesome', 'long_term');
+    repo.set('agent-2', 'note', 'HiveClaw v2 release', 'short_term');
     repo.set('agent-1', 'other', 'unrelated info', 'short_term');
-    const results = repo.search('SuperClaw');
+    const results = repo.search('HiveClaw');
     expect(results).toHaveLength(2);
   });
 

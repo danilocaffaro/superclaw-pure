@@ -1,7 +1,7 @@
 /**
  * api/channels.ts — External channel integrations (Batch 7)
  *
- * Allows SuperClaw to send/receive messages via:
+ * Allows HiveClaw to send/receive messages via:
  *   - Telegram Bot API
  *   - WhatsApp (via Twilio or Meta Cloud API)
  *   - Discord Webhook
@@ -485,7 +485,7 @@ export function registerChannelRoutes(app: FastifyInstance, db: Database.Databas
 
     try {
       await sendViaChannel(ch, {
-        text: '✅ SuperClaw channel connection test — working!',
+        text: '✅ HiveClaw channel connection test — working!',
         to: getChannelTestTarget(ch.config),
       });
       return { data: { ok: true, message: 'Test message sent successfully' } };

@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { mkdirSync } from 'fs';
 
-const DB_PATH = process.env.SUPERCLAW_DB_PATH || join(homedir(), '.superclaw', 'superclaw.db');
+const DB_PATH = process.env.HIVECLAW_DB_PATH || process.env.SUPERCLAW_DB_PATH || join(homedir(), '.hiveclaw', 'hiveclaw.db');
 
 let _dbInstance: Database.Database | null = null;
 
@@ -338,7 +338,7 @@ export function initDatabase(): Database.Database {
 
     -- ── Gateways (B046 — Sprint 49) ──────────────────────────────────────────
     -- REMOVED (Sprint 71): gateways table is orphan — Gateway feature was
-    -- removed in the SuperClaw Pure fork. Zero SQL queries reference this table.
+    -- removed in the HiveClaw fork. Zero SQL queries reference this table.
     -- Keeping commented for existing DB backward compat (table will remain in
     -- DBs that already have it; it's harmless).
     --

@@ -1,5 +1,5 @@
 // ============================================================
-// Agent Runner — The core agentic loop for SuperClaw
+// Agent Runner — The core agentic loop for HiveClaw
 // ============================================================
 
 import type { LLMMessage, LLMOptions, StreamChunk } from './providers/types.js';
@@ -187,7 +187,7 @@ export async function* runAgent(
     `temperature=${agentConfig.temperature ?? 0.7}`,
     `tools=${toolNames.length}`,
     `date=${new Date().toISOString().split('T')[0]}`,
-    `platform=SuperClaw Pure`,
+    `platform=HiveClaw`,
   ];
   const runtimeLine = `Runtime: ${runtimeParts.join(' | ')}`;
   const toolsList = toolNames.length > 0

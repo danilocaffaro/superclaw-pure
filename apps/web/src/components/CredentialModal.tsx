@@ -52,7 +52,7 @@ export function CredentialModal() {
         body: JSON.stringify({
           requestId: activeRequest.id,
           value,
-          passphrase: passphrase || 'default-superclaw-key',
+          passphrase: passphrase || 'default-hiveclaw-key',
           saveToVault,
         }),
       });

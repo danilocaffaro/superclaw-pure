@@ -6,7 +6,7 @@ import { SectionTitle } from './shared';
 interface CredentialEntry {
   name: string;
   masked: string;
-  source: 'superclaw';
+  source: 'hiveclaw';
 }
 
 export default function VaultTab() {
@@ -33,7 +33,7 @@ export default function VaultTab() {
               creds.push({
                 name: `${name.toUpperCase()}_API_KEY`,
                 masked: key ? key.slice(0, 4) + '••••' + key.slice(-4) : '(not set)',
-                source: 'superclaw',
+                source: 'hiveclaw',
               });
             }
           }
@@ -52,7 +52,7 @@ export default function VaultTab() {
             for (const provId of seenProviders) {
               const keyName = `${provId.toUpperCase().replace(/-/g, '_')}_KEY`;
               if (!creds.find(c => c.name === keyName)) {
-                creds.push({ name: keyName, masked: '(configured)', source: 'superclaw' });
+                creds.push({ name: keyName, masked: '(configured)', source: 'hiveclaw' });
               }
             }
           }

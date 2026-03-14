@@ -1,7 +1,7 @@
 /**
  * Provider Router — thin layer over native chat-engine.ts
  *
- * In SuperClaw Pure, all LLM communication goes through chat-engine.ts
+ * In HiveClaw, all LLM communication goes through chat-engine.ts
  * which uses native fetch(). This file provides backward-compatible
  * interfaces for code that references ProviderRouter.
  */
@@ -134,7 +134,7 @@ export class ProviderRouter {
             headers: {
               Authorization: `Bearer ${chatOptions.apiKey}`,
               'Accept': 'application/json',
-              'User-Agent': 'SuperClaw/1.0',
+              'User-Agent': 'HiveClaw/1.0',
             },
             signal: AbortSignal.timeout(10000),
           });

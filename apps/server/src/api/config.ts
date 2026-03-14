@@ -79,7 +79,7 @@ export function registerConfigRoutes(app: FastifyInstance, db?: Database.Databas
   // GET /api/config/database — database info
   app.get('/api/config/database', async (_req, reply) => {
     try {
-      const dbPath = resolve(homedir(), '.superclaw', 'superclaw.db');
+      const dbPath = resolve(homedir(), '.hiveclaw', 'hiveclaw.db');
       let sizeBytes = 0;
       let lastModified = '';
       try {
@@ -131,11 +131,11 @@ export function registerConfigRoutes(app: FastifyInstance, db?: Database.Databas
       return reply.status(403).send({ error: 'Forbidden — owner or admin role required' });
     }
     try {
-      const dbPath = resolve(homedir(), '.superclaw', 'superclaw.db');
+      const dbPath = resolve(homedir(), '.hiveclaw', 'hiveclaw.db');
       const { createReadStream } = await import('fs');
       const stream = createReadStream(dbPath);
       return reply
-        .header('Content-Disposition', 'attachment; filename="superclaw.db"')
+        .header('Content-Disposition', 'attachment; filename="hiveclaw.db"')
         .header('Content-Type', 'application/octet-stream')
         .send(stream);
     } catch (err) {
@@ -165,7 +165,7 @@ export function registerConfigRoutes(app: FastifyInstance, db?: Database.Databas
       if (!file) {
         return reply.status(400).send({ error: { code: 'NO_FILE', message: 'Upload a .db file' } });
       }
-      const dbPath = resolve(homedir(), '.superclaw', 'superclaw.db');
+      const dbPath = resolve(homedir(), '.hiveclaw', 'hiveclaw.db');
       const backupPath = dbPath + '.backup-' + Date.now();
       const { copyFileSync, writeFileSync } = await import('fs');
       // Backup current DB first

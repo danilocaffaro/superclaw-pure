@@ -1,5 +1,5 @@
 // ============================================================
-// SuperClaw Shared Types
+// HiveClaw Shared Types
 // ============================================================
 export {};
 //# sourceMappingURL=types.js.map

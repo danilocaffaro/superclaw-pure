@@ -12,7 +12,7 @@
  * gets a persistent conversation thread with the assigned agent.
  */
 
-import type { Agent } from '@superclaw/shared';
+import type { Agent } from '@hiveclaw/shared';
 import { getSessionManager } from './session-manager.js';
 import { runAgent } from './agent-runner.js';
 import type { AgentConfig } from './agent-runner.js';
@@ -75,7 +75,7 @@ export async function handleChannelInbound(inbound: ChannelInbound): Promise<str
     ? agentRowToConfig(agentRow)
     : {
         id: inbound.agentId,
-        name: 'SuperClaw',
+        name: 'HiveClaw',
         emoji: '🤖',
         systemPrompt: 'You are a helpful AI assistant.',
         providerId: getDefaultProviderId(),

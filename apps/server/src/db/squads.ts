@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import type Database from 'better-sqlite3';
-import type { Squad, SquadCreateInput } from '@superclaw/shared';
+import type { Squad, SquadCreateInput } from '@hiveclaw/shared';
 import { sanitizeText } from '../utils/sanitize.js';
 
 interface SquadRow {

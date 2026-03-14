@@ -184,7 +184,7 @@ export type SSEEvent = {
 } | {
     type: 'heartbeat';
 };
-export interface SuperClawConfig {
+export interface HiveClawConfig {
     server: {
         port: number;
         host: string;

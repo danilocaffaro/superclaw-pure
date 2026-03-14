@@ -132,7 +132,7 @@ export function PWAProvider() {
                 fontFamily: 'var(--font-sans)',
               }}
             >
-              Install SuperClaw
+              Install HiveClaw
             </div>
             <div
               style={{

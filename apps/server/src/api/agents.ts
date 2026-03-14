@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { AgentRepository } from '../db/agents.js';
-import type { AgentCreateInput } from '@superclaw/shared';
+import type { AgentCreateInput } from '@hiveclaw/shared';
 import { getWorkerPool } from '../engine/agent-worker-pool.js';
 import { AgentMemoryRepository, type MemoryType } from '../db/agent-memory.js';
 

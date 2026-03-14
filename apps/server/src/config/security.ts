@@ -11,11 +11,11 @@ import { homedir } from 'os';
 
 /**
  * Resolve the workspace root.
- * Priority: SUPERCLAW_WORKSPACE env > ~/.superclaw/workspace > cwd
+ * Priority: SUPERCLAW_WORKSPACE env > ~/.hiveclaw/workspace > cwd
  */
 export function getWorkspaceRoot(): string {
   return process.env.SUPERCLAW_WORKSPACE
-    || resolve(homedir(), '.superclaw', 'workspace');
+    || resolve(homedir(), '.hiveclaw', 'workspace');
 }
 
 /**

@@ -3,7 +3,7 @@ import { validateToolPath, isCommandSafe, isPublicRoute } from '../config/securi
 import { homedir } from 'os';
 import { join } from 'path';
 
-const workspace = process.env.SUPERCLAW_WORKSPACE ?? join(homedir(), '.superclaw', 'workspace');
+const workspace = process.env.HIVECLAW_WORKSPACE ?? process.env.SUPERCLAW_WORKSPACE ?? join(homedir(), '.hiveclaw', 'workspace');
 
 describe('Security — validateToolPath', () => {
   it('should allow paths within workspace', () => {

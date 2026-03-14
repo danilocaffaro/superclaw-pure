@@ -107,7 +107,7 @@ export class BrowserPool {
       try {
         const browser = await this.ensureBrowser();
         const context = await browser.newContext({
-          userAgent: 'SuperClaw/0.2 (Browser Automation)',
+          userAgent: 'HiveClaw/0.2 (Browser Automation)',
           viewport: { width: 1280, height: 800 },
         });
         const page = await context.newPage();
@@ -187,7 +187,7 @@ export class BrowserPool {
   private async fetchNavigate(url: string): Promise<PageContent> {
     try {
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'SuperClaw/0.2 (Browser Automation)' },
+        headers: { 'User-Agent': 'HiveClaw/0.2 (Browser Automation)' },
         signal: AbortSignal.timeout(15_000),
       });
       const html = await res.text();

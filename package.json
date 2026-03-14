@@ -1,18 +1,18 @@
 {
-  "name": "superclaw-pure",
+  "name": "hiveclaw",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @superclaw/server dev",
-    "dev:web": "pnpm --filter @superclaw/web dev",
-    "build": "pnpm --filter @superclaw/web build && pnpm --filter @superclaw/server build",
-    "build:web": "NEXT_OUTPUT=export pnpm --filter @superclaw/web build",
-    "build:server": "pnpm --filter @superclaw/server build",
+    "dev": "pnpm --filter @hiveclaw/server dev",
+    "dev:web": "pnpm --filter @hiveclaw/web dev",
+    "build": "pnpm --filter @hiveclaw/web build && pnpm --filter @hiveclaw/server build",
+    "build:web": "NEXT_OUTPUT=export pnpm --filter @hiveclaw/web build",
+    "build:server": "pnpm --filter @hiveclaw/server build",
     "start": "NODE_ENV=production node apps/server/dist/index.js",
     "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r clean",
-    "test": "pnpm --filter @superclaw/server test"
+    "test": "pnpm --filter @hiveclaw/server test"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

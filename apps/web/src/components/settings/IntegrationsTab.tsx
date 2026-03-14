@@ -287,7 +287,7 @@ export default function IntegrationsTab() {
                 type="url"
                 value={wh.url}
                 onChange={(e) => updateWebhook(wh.id, 'url', e.target.value)}
-                placeholder="https://your-app.com/webhooks/superclaw"
+                placeholder="https://your-app.com/webhooks/hiveclaw"
                 style={{
                   flex: 1, padding: '7px 10px', borderRadius: 'var(--radius-md)',
                   background: 'var(--input-bg)', border: '1px solid var(--border)',

@@ -35,7 +35,7 @@ async function startServer(): Promise<void> {
   if (!existsSync(serverPath)) {
     console.error('[Desktop] Server not found at:', serverPath);
     dialog.showErrorBox(
-      'SuperClaw',
+      'HiveClaw',
       `Server not found at: ${serverPath}\n\nPlease rebuild the server.`
     );
     app.quit();
@@ -56,7 +56,7 @@ async function startServer(): Promise<void> {
     serverProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString();
       console.log('[Server]', msg.trim());
-      if (msg.includes('SuperClaw Server') || msg.includes('Server listening')) {
+      if (msg.includes('HiveClaw Server') || msg.includes('Server listening')) {
         resolvePromise();
       }
     });
@@ -150,7 +150,7 @@ function createSplash(): BrowserWindow {
     <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0D1117;color:#E6EDF3;font-family:Inter,system-ui;border-radius:16px;overflow:hidden;user-select:none;-webkit-app-region:drag">
       <div style="text-align:center">
         <div style="font-size:80px;margin-bottom:16px">&#x1F980;</div>
-        <div style="font-size:20px;font-weight:700;margin-bottom:8px">SuperClaw</div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px">HiveClaw</div>
         <div style="font-size:13px;color:#8B949E">Starting engine...</div>
         <div style="margin-top:20px;width:200px;height:3px;background:#30363D;border-radius:2px;overflow:hidden;margin-left:auto;margin-right:auto">
           <div style="width:40%;height:100%;background:#FF6B6B;border-radius:2px;animation:loading 1.5s ease-in-out infinite"></div>
@@ -178,7 +178,7 @@ function createMainWindow(): void {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    title: 'SuperClaw',
+    title: 'HiveClaw',
     titleBarStyle: 'hiddenInset', // macOS native traffic lights
     trafficLightPosition: { x: 16, y: 40 },
     backgroundColor: '#0D1117',
@@ -231,12 +231,12 @@ function createTray(): void {
   // Empty nativeImage → text-only tray (cross-platform fallback)
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
-  tray.setToolTip('SuperClaw');
+  tray.setToolTip('HiveClaw');
   tray.setTitle('🦀'); // macOS menu bar text
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show SuperClaw',
+      label: 'Show HiveClaw',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -263,7 +263,7 @@ function createTray(): void {
     },
     { type: 'separator' },
     {
-      label: 'Quit SuperClaw',
+      label: 'Quit HiveClaw',
       accelerator: 'CmdOrCtrl+Q',
       click: () => {
         stopServer();
@@ -290,7 +290,7 @@ function createTray(): void {
 function createMenu(): void {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: 'SuperClaw',
+      label: 'HiveClaw',
       submenu: [
         { role: 'about' },
         { type: 'separator' },
@@ -356,12 +356,12 @@ function createMenu(): void {
       label: 'Help',
       submenu: [
         {
-          label: 'SuperClaw Documentation',
-          click: () => shell.openExternal('https://github.com/danilocaffaro/superclaw'),
+          label: 'HiveClaw Documentation',
+          click: () => shell.openExternal('https://github.com/danilocaffaro/hiveclaw'),
         },
         {
           label: 'Report Issue',
-          click: () => shell.openExternal('https://github.com/danilocaffaro/superclaw/issues'),
+          click: () => shell.openExternal('https://github.com/danilocaffaro/hiveclaw/issues'),
         },
       ],
     },
@@ -409,14 +409,14 @@ app.on('before-quit', () => {
 
 // ─── Deep Links ───────────────────────────────────────
 
-app.setAsDefaultProtocolClient('superclaw');
+app.setAsDefaultProtocolClient('hiveclaw');
 
 app.on('open-url', (_event, url) => {
-  // e.g. superclaw://session/abc123
+  // e.g. hiveclaw://session/abc123
   if (mainWindow) {
     mainWindow.show();
     mainWindow.focus();
-    const path = url.replace('superclaw://', '/');
+    const path = url.replace('hiveclaw://', '/');
     mainWindow.webContents.executeJavaScript(
       `window.location.hash = '${path}'`
     );

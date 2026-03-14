@@ -1,5 +1,5 @@
 // ============================================================
-// Self-Watchdog — Internal health monitoring for SuperClaw Pure
+// Self-Watchdog — Internal health monitoring for HiveClaw
 // Autonomous: no external dependencies (no OpenClaw, no Alice)
 // ============================================================
 
@@ -129,7 +129,7 @@ export class SelfWatchdog {
           `[Watchdog] 🔴 ${this.consecutiveFailures} consecutive failures — server may be unresponsive. ` +
             `launchd will restart on process exit.`
         );
-        // Log to stderr so it shows in superclaw-error.log
+        // Log to stderr so it shows in hiveclaw-error.log
         process.stderr.write(
           `[WATCHDOG CRITICAL] ${new Date().toISOString()} — ${this.consecutiveFailures} consecutive health check failures. Last error: ${lastError}\n`
         );

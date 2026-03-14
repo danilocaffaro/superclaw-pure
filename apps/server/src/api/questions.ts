@@ -13,7 +13,7 @@ interface QuestionRow {
 }
 
 export async function questionRoutes(app: FastifyInstance) {
-  const db = new Database(join(homedir(), '.superclaw', 'superclaw.db'));
+  const db = new Database(join(homedir(), '.hiveclaw', 'hiveclaw.db'));
 
   // Ensure questions table exists
   db.exec(`CREATE TABLE IF NOT EXISTS questions (

@@ -1,7 +1,7 @@
 /**
  * db/external-agents.ts — External Agent Registry
  *
- * Manages agents that live outside SuperClaw Pure (e.g. OpenClaw agents,
+ * Manages agents that live outside HiveClaw (e.g. OpenClaw agents,
  * custom bots, third-party AI services). These agents participate in
  * squad chats via webhook-based communication.
  *
@@ -33,7 +33,7 @@ export interface ExternalAgent {
   /** Auth token this agent must send when calling back */
   inboundToken: string;
 
-  /** Auth token SuperClaw sends in webhook requests (Bearer) */
+  /** Auth token HiveClaw sends in webhook requests (Bearer) */
   outboundToken: string;
 
   /** Optional: role in squads (for ARCHER v2 routing) */

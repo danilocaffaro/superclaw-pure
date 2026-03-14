@@ -20,7 +20,7 @@ describe('Curated Skill Hub', () => {
       expect(skill.category).toBeTruthy();
       expect(skill.badge).toBe('verified');
       expect(skill.version).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(skill.author).toBe('SuperClaw');
+      expect(skill.author).toBe('HiveClaw');
       expect(skill.securityScore).toBeGreaterThanOrEqual(8.5);
       expect(skill.content).toBeTruthy();
       expect(skill.tags.length).toBeGreaterThan(0);

@@ -206,9 +206,9 @@ export async function dispatchToExternalAgent(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${agent.outboundToken}`,
-        'X-SuperClaw-Request-Id': requestId,
-        'X-SuperClaw-Agent-Tier': agent.tier,
-        'X-SuperClaw-Agent-Id': agent.id,
+        'X-HiveClaw-Request-Id': requestId,
+        'X-HiveClaw-Agent-Tier': agent.tier,
+        'X-HiveClaw-Agent-Id': agent.id,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -268,10 +268,10 @@ export function generateProtocolPack(agent: ExternalAgent, baseUrl: string): {
   };
   capabilities: string[];
 } {
-  const skillPrompt = `# SuperClaw Protocol Pack — Squad Communication
+  const skillPrompt = `# HiveClaw Protocol Pack — Squad Communication
 
-You have been invited to participate in squads on SuperClaw.
-When you receive a message from SuperClaw, follow these rules:
+You have been invited to participate in squads on HiveClaw.
+When you receive a message from HiveClaw, follow these rules:
 
 ## Communication Rules (ARCHER v2)
 1. **ECHO-FREE**: Never repeat information already posted by another agent
@@ -288,7 +288,7 @@ Use these tags when relevant:
 - [QA-FAIL] #N — QA failed, needs fixes
 
 ## Response Format
-When SuperClaw sends you a squad message:
+When HiveClaw sends you a squad message:
 1. Read the conversation context carefully
 2. Add YOUR unique perspective (don't repeat others)
 3. If you have nothing to add, respond with a brief ACK

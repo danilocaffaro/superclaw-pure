@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-// Mirrors the Agent type from @superclaw/shared
+// Mirrors the Agent type from @hiveclaw/shared
 export interface Agent {
   id: string;
   name: string;
@@ -17,7 +17,7 @@ export interface Agent {
   color: string;
   createdAt: string;
   updatedAt: string;
-  source?: 'superclaw';
+  source?: 'hiveclaw';
   isExternal?: boolean;
   tier?: string;
 }
@@ -88,7 +88,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
         color: (a.color ?? '#58A6FF') as string,
         createdAt: (a.createdAt ?? a.created_at ?? new Date().toISOString()) as string,
         updatedAt: (a.updatedAt ?? a.updated_at ?? new Date().toISOString()) as string,
-        source: 'superclaw' as const,
+        source: 'hiveclaw' as const,
         isExternal: false,
       })) as Agent[];
 
@@ -112,7 +112,7 @@ export const useAgentStore = create<AgentStore>((set) => ({
           color: (a.color ?? '#A855F7') as string,
           createdAt: (a.createdAt ?? a.created_at ?? new Date().toISOString()) as string,
           updatedAt: (a.updatedAt ?? a.updated_at ?? new Date().toISOString()) as string,
-          source: 'superclaw' as const,
+          source: 'hiveclaw' as const,
           isExternal: true,
           tier: (a.tier ?? 'lightweight') as string,
         })) as Agent[];

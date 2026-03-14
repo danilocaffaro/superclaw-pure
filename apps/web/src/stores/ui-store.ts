@@ -93,7 +93,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Interface mode — persisted in localStorage, default: 'lite'
   // On mobile first visit (no localStorage key), force 'lite'
   interfaceMode: (typeof window !== 'undefined'
-    ? (localStorage.getItem('superclaw-interface-mode') as InterfaceMode) || 'lite'
+    ? (localStorage.getItem('hiveclaw-interface-mode') as InterfaceMode) || 'lite'
     : 'lite') as InterfaceMode,
 
   mainView: 'chat',
@@ -124,7 +124,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setInterfaceMode: (mode) => {
     set({ interfaceMode: mode });
     if (typeof window !== 'undefined') {
-      localStorage.setItem('superclaw-interface-mode', mode);
+      localStorage.setItem('hiveclaw-interface-mode', mode);
     }
   },
   toggleInterfaceMode: () => {

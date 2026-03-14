@@ -1,6 +1,6 @@
 {
-  "name": "SuperClaw",
-  "short_name": "SuperClaw",
+  "name": "HiveClaw",
+  "short_name": "HiveClaw",
   "description": "Your personal AI assistant",
   "start_url": "/",
   "display": "standalone",

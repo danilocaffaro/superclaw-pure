@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-// Mirrors the Squad type from @superclaw/shared
+// Mirrors the Squad type from @hiveclaw/shared
 export interface Squad {
   id: string;
   name: string;

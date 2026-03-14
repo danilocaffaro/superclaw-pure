@@ -151,7 +151,7 @@ export default function HomePage() {
   // Auto-detect mobile on first visit: force 'lite' if no localStorage override
   useEffect(() => {
     if (isMobile && typeof window !== 'undefined') {
-      const hasOverride = localStorage.getItem('superclaw-interface-mode');
+      const hasOverride = localStorage.getItem('hiveclaw-interface-mode');
       if (!hasOverride) {
         setInterfaceMode('lite');
       }

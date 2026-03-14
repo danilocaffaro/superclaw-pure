@@ -11,7 +11,7 @@ export interface Session {
   squad_id?: string;
   created_at: string;
   updated_at: string;
-  source?: 'superclaw';
+  source?: 'hiveclaw';
   last_message?: string;
 }
 
@@ -99,10 +99,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       messages: [],
     });
     if (id) {
-      try { localStorage.setItem('superclaw-active-session', id); } catch { /* noop */ }
+      try { localStorage.setItem('hiveclaw-active-session', id); } catch { /* noop */ }
       get().fetchMessages(id);
     } else {
-      try { localStorage.removeItem('superclaw-active-session'); } catch { /* noop */ }
+      try { localStorage.removeItem('hiveclaw-active-session'); } catch { /* noop */ }
     }
   },
   setMessages: (messages) => set({ messages }),
@@ -135,13 +135,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         squad_id: (s.squad_id ?? '') as string | undefined,
         created_at: (s.created_at ?? s.lastActive ?? new Date().toISOString()) as string,
         updated_at: (s.updated_at ?? s.lastActive ?? new Date().toISOString()) as string,
-        source: 'superclaw' as const,
+        source: 'hiveclaw' as const,
         last_message: (s.last_message ?? '') as string,
       })) as Session[];
       set({ sessions });
       // Restore last active session from localStorage
       try {
-        const stored = localStorage.getItem('superclaw-active-session');
+        const stored = localStorage.getItem('hiveclaw-active-session');
         if (stored && sessions.find((s) => s.id === stored)) {
           const restoredSession = sessions.find((s) => s.id === stored);
           set({
@@ -190,7 +190,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       });
       const session = (res as { data: Session }).data ?? (res as Session);
       set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id, activeSquadId: null, messages: [] }));
-      try { localStorage.setItem('superclaw-active-session', session.id); } catch { /* noop */ }
+      try { localStorage.setItem('hiveclaw-active-session', session.id); } catch { /* noop */ }
       return session;
     } catch {
       const session: Session = {
@@ -202,7 +202,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         updated_at: new Date().toISOString(),
       };
       set((s) => ({ sessions: [session, ...s.sessions], activeSessionId: session.id, activeSquadId: null, messages: [] }));
-      try { localStorage.setItem('superclaw-active-session', session.id); } catch { /* noop */ }
+      try { localStorage.setItem('hiveclaw-active-session', session.id); } catch { /* noop */ }
       return session;
     }
   },
@@ -218,7 +218,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       );
       if (existing) {
         set({ activeSessionId: existing.id, activeSquadId: squadId, messages: [] });
-        try { localStorage.setItem('superclaw-active-session', existing.id); } catch { /* noop */ }
+        try { localStorage.setItem('hiveclaw-active-session', existing.id); } catch { /* noop */ }
         get().fetchMessages(existing.id);
         return;
       }
@@ -237,7 +237,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         activeSquadId: squadId,
         messages: [],
       }));
-      try { localStorage.setItem('superclaw-active-session', session.id); } catch { /* noop */ }
+      try { localStorage.setItem('hiveclaw-active-session', session.id); } catch { /* noop */ }
     } catch (e) {
       console.error('Failed to create squad session:', e);
       // Fallback: create local session for offline/dev use
@@ -255,7 +255,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         activeSquadId: squadId,
         messages: [],
       }));
-      try { localStorage.setItem('superclaw-active-session', session.id); } catch { /* noop */ }
+      try { localStorage.setItem('hiveclaw-active-session', session.id); } catch { /* noop */ }
     }
   },
 

@@ -22,7 +22,7 @@ interface HeartbeatRunRow {
 }
 
 export async function heartbeatRoutes(app: FastifyInstance) {
-  const db = new Database(join(homedir(), '.superclaw', 'superclaw.db'));
+  const db = new Database(join(homedir(), '.hiveclaw', 'hiveclaw.db'));
 
   // Ensure heartbeat tables exist
   db.exec(`

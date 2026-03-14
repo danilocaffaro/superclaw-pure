@@ -14,7 +14,7 @@ interface MemoryRow {
 }
 
 export async function memoryRoutes(app: FastifyInstance) {
-  const db = new Database(join(homedir(), '.superclaw', 'superclaw.db'));
+  const db = new Database(join(homedir(), '.hiveclaw', 'hiveclaw.db'));
 
   // Ensure legacy memories table exists (used by MemoryPanel)
   db.exec(`CREATE TABLE IF NOT EXISTS memories (

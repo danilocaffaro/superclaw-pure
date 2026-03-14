@@ -223,7 +223,7 @@ async function testProviderConnection(
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Accept': 'application/json',
-          'User-Agent': 'SuperClaw/1.0',
+          'User-Agent': 'HiveClaw/1.0',
         },
         signal: AbortSignal.timeout(10000),
       });
@@ -235,7 +235,7 @@ async function testProviderConnection(
       // Exchange GitHub token for Copilot session token, then discover models
       try {
         const tokenRes = await fetch('https://api.github.com/copilot_internal/v2/token', {
-          headers: { Authorization: `token ${apiKey}`, 'Accept': 'application/json', 'User-Agent': 'SuperClaw/1.0' },
+          headers: { Authorization: `token ${apiKey}`, 'Accept': 'application/json', 'User-Agent': 'HiveClaw/1.0' },
           signal: AbortSignal.timeout(10000),
         });
         if (tokenRes.ok) {
@@ -572,7 +572,7 @@ export function registerSetupRoutes(
             headers: {
               Authorization: `Bearer ${apiKey}`,
               'Accept': 'application/json',
-              'User-Agent': 'SuperClaw/1.0',
+              'User-Agent': 'HiveClaw/1.0',
             },
             signal: AbortSignal.timeout(10000),
           });

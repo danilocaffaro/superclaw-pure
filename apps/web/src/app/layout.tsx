@@ -16,13 +16,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SuperClaw',
+  title: 'HiveClaw',
   description: 'Your personal AI assistant',
   manifest: '/manifest.json',
-  applicationName: 'SuperClaw',
+  applicationName: 'HiveClaw',
   appleWebApp: {
     capable: true,
-    title: 'SuperClaw',
+    title: 'HiveClaw',
     statusBarStyle: 'black-translucent',
   },
   other: {

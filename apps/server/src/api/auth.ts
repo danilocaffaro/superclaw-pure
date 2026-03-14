@@ -342,7 +342,7 @@ export function registerAuthRoutes(app: FastifyInstance, db: Database.Database):
 
   // GET /api/auth/sessions — list active sessions (minimal: current request only)
   app.get('/api/auth/sessions', async (req) => {
-    // SuperClaw doesn't have session tokens (stateless API).
+    // HiveClaw doesn't have session tokens (stateless API).
     // Return the current request as the only "session".
     return {
       data: [

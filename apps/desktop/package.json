@@ -1,5 +1,5 @@
 {
-  "name": "@superclaw/desktop",
+  "name": "@hiveclaw/desktop",
   "version": "0.2.0",
   "private": true,
   "main": "dist/main.js",
@@ -20,8 +20,8 @@
     "typescript": "^5.5.0"
   },
   "build": {
-    "appId": "ai.superclaw.desktop",
-    "productName": "SuperClaw",
+    "appId": "ai.hiveclaw.desktop",
+    "productName": "HiveClaw",
     "directories": {
       "output": "release"
     },

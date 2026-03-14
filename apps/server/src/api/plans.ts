@@ -16,7 +16,7 @@ interface PlanRow {
 }
 
 export async function planRoutes(app: FastifyInstance) {
-  const db = new Database(join(homedir(), '.superclaw', 'superclaw.db'));
+  const db = new Database(join(homedir(), '.hiveclaw', 'hiveclaw.db'));
 
   // Ensure plans table exists
   db.exec(`CREATE TABLE IF NOT EXISTS plans (

@@ -1,6 +1,6 @@
-// SuperClaw constants
-export const SUPERCLAW_HOME = '~/.superclaw';
-export const SUPERCLAW_DB = 'superclaw.db';
+// HiveClaw constants
+export const SUPERCLAW_HOME = '~/.hiveclaw';
+export const SUPERCLAW_DB = 'hiveclaw.db';
 export const DEFAULT_SERVER_PORT = 4070;
 export const DEFAULT_WEB_PORT = 3200;
 export const OPENCLAW_WS_URL = 'ws://127.0.0.1:18789';

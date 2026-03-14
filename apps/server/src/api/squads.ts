@@ -3,7 +3,7 @@ import type { SquadRepository } from '../db/squads.js';
 import type { SquadMemberRepository } from '../db/squad-members.js';
 import type { AgentRepository } from '../db/agents.js';
 import type { ExternalAgentRepository } from '../db/external-agents.js';
-import type { SquadCreateInput } from '@superclaw/shared';
+import type { SquadCreateInput } from '@hiveclaw/shared';
 
 // ── Squad Templates ──────────────────────────────────────────────────────────
 

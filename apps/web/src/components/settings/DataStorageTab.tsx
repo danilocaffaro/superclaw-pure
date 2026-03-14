@@ -54,7 +54,7 @@ export default function DataStorageTab() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `superclaw-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `hiveclaw-export-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
         showFeedback(true, 'Export downloaded successfully');

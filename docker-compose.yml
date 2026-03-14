@@ -1,23 +1,23 @@
-# docker-compose.yml — SuperClaw Pure
+# docker-compose.yml — HiveClaw Pure
 # Quick start: docker compose up -d
 # Access: http://localhost:4070
 
 services:
-  superclaw:
-    image: ghcr.io/danilocaffaro/superclaw-pure:latest
+  hiveclaw:
+    image: ghcr.io/danilocaffaro/hiveclaw-pure:latest
     # Or build locally: comment out 'image' and uncomment 'build'
     # build: .
-    container_name: superclaw-pure
+    container_name: hiveclaw-pure
     restart: unless-stopped
     ports:
       - "4070:4070"
     volumes:
-      - superclaw-data:/data
-      - superclaw-workspace:/workspace
+      - hiveclaw-data:/data
+      - hiveclaw-workspace:/workspace
     environment:
       - NODE_ENV=production
       - PORT=4070
-      - SUPERCLAW_DB_PATH=/data/superclaw.db
+      - SUPERCLAW_DB_PATH=/data/hiveclaw.db
       - SUPERCLAW_WORKSPACE=/workspace
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4070/api/health"]
@@ -26,5 +26,5 @@ services:
       retries: 3
 
 volumes:
-  superclaw-data:
-  superclaw-workspace:
+  hiveclaw-data:
+  hiveclaw-workspace:

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { SectionTitle } from './shared';
 
-// ─── MCP Tab (B071) — real MCP servers from SuperClaw engine ─────────────────
+// ─── MCP Tab (B071) — real MCP servers from HiveClaw engine ─────────────────
 
 interface MCPServer {
   id: string;

@@ -1,7 +1,7 @@
 // Build version — injected at build time; bump to force cache busting
 const BUILD_VERSION = 'v__BUILD_TS__';
-const CACHE_NAME = `superclaw-${BUILD_VERSION}`;
-const STATIC_CACHE = `superclaw-static-${BUILD_VERSION}`;
+const CACHE_NAME = `hiveclaw-${BUILD_VERSION}`;
+const STATIC_CACHE = `hiveclaw-static-${BUILD_VERSION}`;
 
 const SHELL_URLS = [
   '/',
@@ -103,7 +103,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
   event.waitUntil(
-    self.registration.showNotification(data.title || 'SuperClaw', {
+    self.registration.showNotification(data.title || 'HiveClaw', {
       body: data.body || 'Agent update',
       icon: '/icons/icon.svg',
       badge: '/icons/icon.svg',

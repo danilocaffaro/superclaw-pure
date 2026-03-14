@@ -16,7 +16,7 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@superclaw/shared": ["../../packages/shared/src"],
+      "@hiveclaw/shared": ["../../packages/shared/src"],
       "@/*": ["./src/*"]
     }
   },

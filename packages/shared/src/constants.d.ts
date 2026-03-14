@@ -1,5 +1,5 @@
-export declare const SUPERCLAW_HOME = "~/.superclaw";
-export declare const SUPERCLAW_DB = "superclaw.db";
+export declare const SUPERCLAW_HOME = "~/.hiveclaw";
+export declare const SUPERCLAW_DB = .hiveclaw.db";
 export declare const DEFAULT_SERVER_PORT = 4070;
 export declare const DEFAULT_WEB_PORT = 3200;
 export declare const OPENCLAW_WS_URL = "ws://127.0.0.1:18789";

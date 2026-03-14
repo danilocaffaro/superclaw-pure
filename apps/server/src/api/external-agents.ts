@@ -193,11 +193,11 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${agent.outboundToken}`,
-          'X-SuperClaw-Test': 'true',
+          'X-HiveClaw-Test': 'true',
         },
         body: JSON.stringify({
           requestId: 'test-' + Date.now(),
-          message: 'This is a connectivity test from SuperClaw. Please respond with { "text": "ok" }',
+          message: 'This is a connectivity test from HiveClaw. Please respond with { "text": "ok" }',
           context: { test: true },
         }),
         signal: controller.signal,

@@ -1,5 +1,5 @@
 /**
- * SuperClaw Pure — Server Entry Point
+ * HiveClaw — Server Entry Point
  * 
  * This is the "Pure" version: standalone engine.
  * All LLM communication goes through the native chat engine.
@@ -136,7 +136,7 @@ async function main() {
   }
 
   // ─── No Bridge needed! ────────────────────────────────────────────────
-  // SuperClaw Pure uses native chat engine (engine/chat-engine.ts)
+  // HiveClaw uses native chat engine (engine/chat-engine.ts)
   // All LLM calls go directly from server → provider API
   logger.info('[Engine] Native mode — direct LLM communication (no Bridge)');
 
@@ -416,7 +416,7 @@ async function main() {
   try {
     await app.listen({ port: PORT, host: HOST });
     console.log('');
-    console.log(`  ✨ SuperClaw Pure v${VERSION}`);
+    console.log(`  ✨ HiveClaw v${VERSION}`);
     console.log(`  → http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(`  → Engine: Native (direct LLM)`);
     console.log(`  → Providers: ${enabledProviders.length > 0 ? enabledProviders.map(p => p.name).join(', ') : 'None (run Setup Wizard)'}`);

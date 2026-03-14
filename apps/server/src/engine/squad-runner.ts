@@ -1,5 +1,5 @@
 // ============================================================
-// Squad Runner — Multi-agent orchestration engine for SuperClaw
+// Squad Runner — Multi-agent orchestration engine for HiveClaw
 // ============================================================
 //
 // Routing strategies:

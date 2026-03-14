@@ -1,7 +1,7 @@
 /**
  * engine/skill-hub.ts — Curated Skill Hub (Batch 7.5)
  *
- * SuperClaw ships a curated library of 18 audited skills, organized into categories.
+ * HiveClaw ships a curated library of 18 audited skills, organized into categories.
  * Each skill has:
  *   - Clean-room rewrite (no copy-paste from community repos)
  *   - Security audit score
@@ -9,7 +9,7 @@
  *   - Sandboxed execution (workspace path guard)
  *   - Category classification
  *
- * Skills are stored in DB and installed to ~/.superclaw/skills/ on demand.
+ * Skills are stored in DB and installed to ~/.hiveclaw/skills/ on demand.
  * Community skills (ClawHub/PicoClaw) can be imported but are NOT pre-installed.
  */
 
@@ -57,7 +57,7 @@ export const CURATED_SKILLS: CuratedSkill[] = [
     category: 'productivity',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['morning', 'summary', 'daily', 'brief'],
@@ -90,7 +90,7 @@ Trigger phrases: "morning brief", "daily brief", "what's on my plate", "status o
     category: 'productivity',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.8,
     usageCount: 0,
     tags: ['tasks', 'extraction', 'action-items', 'productivity'],
@@ -123,7 +123,7 @@ If confirmed, POST each task to /tasks.
     category: 'productivity',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.8,
     usageCount: 0,
     tags: ['meetings', 'notes', 'summarize', 'structure'],
@@ -172,7 +172,7 @@ Be concise. Eliminate filler. Preserve all decisions and action items.
     category: 'coding',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['code', 'review', 'security', 'bugs', 'performance'],
@@ -208,7 +208,7 @@ End with: overall score /10 and top 3 priorities.
     category: 'coding',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['git', 'commit', 'conventional-commits', 'developer'],
@@ -250,7 +250,7 @@ Generate 2-3 options if the change is ambiguous.
     category: 'coding',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['debug', 'error', 'stack-trace', 'troubleshoot'],
@@ -286,7 +286,7 @@ Always provide a minimal reproducer if possible.
     category: 'search',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.0,
     usageCount: 0,
     tags: ['research', 'web', 'search', 'summarize', 'sources'],
@@ -334,7 +334,7 @@ Be honest about uncertainty. Distinguish facts from opinions.
     category: 'search',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['fact-check', 'verify', 'truth', 'sources'],
@@ -372,7 +372,7 @@ Be calibrated: "I'm not certain" is better than false confidence.
     category: 'communication',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['email', 'writing', 'communication', 'compose'],
@@ -419,7 +419,7 @@ Always offer to adjust tone or length.
     category: 'communication',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['writing', 'grammar', 'editing', 'style', 'clarity'],
@@ -460,7 +460,7 @@ If the text is already good, say so.
     category: 'data',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['data', 'analysis', 'csv', 'insights', 'trends'],
@@ -496,7 +496,7 @@ Ask for context if needed: "What decision is this data meant to inform?"
     category: 'data',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.0,
     usageCount: 0,
     tags: ['sql', 'database', 'query', 'postgresql', 'mysql', 'sqlite'],
@@ -535,7 +535,7 @@ For optimization: show EXPLAIN output interpretation if provided.
     category: 'automation',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 8.5,
     usageCount: 0,
     tags: ['automation', 'workflow', 'n8n', 'zapier', 'trigger'],
@@ -562,7 +562,7 @@ Error handling: [What happens if step N fails]
 \`\`\`
 
 After designing, offer to:
-- Create this as a SuperClaw workflow (POST /workflows)
+- Create this as a HiveClaw workflow (POST /workflows)
 - Export as n8n JSON
 - Provide webhook URL for trigger
 
@@ -577,7 +577,7 @@ For complex workflows: break into sub-workflows.
     category: 'automation',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['cron', 'schedule', 'automation', 'time'],
@@ -615,7 +615,7 @@ Always specify timezone assumption. Warn about DST edge cases for hourly+ jobs.
     category: 'creative',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['writing', 'content', 'blog', 'social-media', 'marketing', 'copy'],
@@ -654,7 +654,7 @@ Always: hook first, fluff last. Benefits over features.
     category: 'creative',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['image', 'dall-e', 'midjourney', 'stable-diffusion', 'prompt', 'creative'],
@@ -694,7 +694,7 @@ Safety: Do not generate prompts for real people, minors, violence, or NSFW conte
     category: 'utilities',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 10,
     usageCount: 0,
     tags: ['convert', 'units', 'calculator', 'currency', 'timezone'],
@@ -732,7 +732,7 @@ Show inverse conversion too.
     category: 'utilities',
     badge: 'verified',
     version: '1.0.0',
-    author: 'SuperClaw',
+    author: 'HiveClaw',
     securityScore: 9.5,
     usageCount: 0,
     tags: ['regex', 'regexp', 'pattern', 'matching', 'developer'],

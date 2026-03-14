@@ -121,7 +121,7 @@ function CodePanel() {
   // rootPath from localStorage or empty
   const [rootPath, setRootPath] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('superclaw-code-rootPath') ?? '';
+      return localStorage.getItem('hiveclaw-code-rootPath') ?? '';
     }
     return '';
   });
@@ -165,7 +165,7 @@ function CodePanel() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && pathInput.trim()) {
                   setRootPath(pathInput.trim());
-                  localStorage.setItem('superclaw-code-rootPath', pathInput.trim());
+                  localStorage.setItem('hiveclaw-code-rootPath', pathInput.trim());
                 }
               }}
               placeholder="/path/to/project"
@@ -180,7 +180,7 @@ function CodePanel() {
               onClick={() => {
                 if (pathInput.trim()) {
                   setRootPath(pathInput.trim());
-                  localStorage.setItem('superclaw-code-rootPath', pathInput.trim());
+                  localStorage.setItem('hiveclaw-code-rootPath', pathInput.trim());
                 }
               }}
               style={{
@@ -207,7 +207,7 @@ function CodePanel() {
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', padding: '2px 4px' }}
             >✏️</button>
             <button
-              onClick={() => { setRootPath(''); localStorage.removeItem('superclaw-code-rootPath'); }}
+              onClick={() => { setRootPath(''); localStorage.removeItem('hiveclaw-code-rootPath'); }}
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, cursor: 'pointer', padding: '2px 4px' }}
             >✕</button>
           </div>
@@ -221,7 +221,7 @@ function CodePanel() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && pathInput.trim()) {
                   setRootPath(pathInput.trim());
-                  localStorage.setItem('superclaw-code-rootPath', pathInput.trim());
+                  localStorage.setItem('hiveclaw-code-rootPath', pathInput.trim());
                   setShowPathInput(false);
                 }
                 if (e.key === 'Escape') setShowPathInput(false);
@@ -237,7 +237,7 @@ function CodePanel() {
               onClick={() => {
                 if (pathInput.trim()) {
                   setRootPath(pathInput.trim());
-                  localStorage.setItem('superclaw-code-rootPath', pathInput.trim());
+                  localStorage.setItem('hiveclaw-code-rootPath', pathInput.trim());
                   setShowPathInput(false);
                 }
               }}

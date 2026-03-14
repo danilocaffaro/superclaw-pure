@@ -66,6 +66,8 @@ export function initDatabase(): Database.Database {
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       role TEXT NOT NULL,
       agent_id TEXT DEFAULT '',
+      agent_name TEXT DEFAULT '',
+      agent_emoji TEXT DEFAULT '',
       content TEXT NOT NULL DEFAULT '[]',
       tokens_input INTEGER DEFAULT 0,
       tokens_output INTEGER DEFAULT 0,
@@ -550,6 +552,13 @@ export function initDatabase(): Database.Database {
       UPDATE messages SET sender_type = 'agent'
       WHERE role = 'assistant' AND agent_id != '' AND agent_id IS NOT NULL
     `);
+  }
+  // ── M13: Add agent_name + agent_emoji columns to messages (Sprint 76) ──────
+  if (!msgCols.includes('agent_name')) {
+    db.exec("ALTER TABLE messages ADD COLUMN agent_name TEXT DEFAULT ''");
+  }
+  if (!msgCols.includes('agent_emoji')) {
+    db.exec("ALTER TABLE messages ADD COLUMN agent_emoji TEXT DEFAULT ''");
   }
 
   // ── S3: Add position column to squad_members (Sprint 76-S) ─────────────────

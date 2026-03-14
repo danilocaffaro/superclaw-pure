@@ -80,6 +80,8 @@ async function main() {
   const agents = new AgentRepository(db);
   const squads = new SquadRepository(db);
   const squadMembers = new SquadMemberRepository(db);
+  const { ExternalAgentRepository } = await import('./db/external-agents.js');
+  const extAgents = new ExternalAgentRepository(db);
   const providers = new ProviderRepository(db);
   const tasks = new TaskRepository(db);
   const artifactRepo = new ArtifactRepository(db);
@@ -377,7 +379,7 @@ async function main() {
   registerHealthRoutes(app);
   registerSessionRoutes(app);
   registerAgentRoutes(app, agents, agentMemoryRepo);
-  registerSquadRoutes(app, squads, squadMembers);
+  registerSquadRoutes(app, squads, squadMembers, agents, extAgents);
   registerConfigRoutes(app, db);
   registerProviderRoutes(app, providers);
   registerSSERoutes(app);

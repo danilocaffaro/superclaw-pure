@@ -33,6 +33,8 @@ export interface MessageInfo {
   role: string; // 'user' | 'assistant' | 'system' | 'tool'
   content: string;
   agent_id: string;
+  agent_name: string;
+  agent_emoji: string;
   sender_type: 'human' | 'agent' | 'external_agent';
   tool_name: string;
   tool_input: string;
@@ -56,6 +58,8 @@ export type AddMessageOpts = {
   role: string;
   content: string;
   agent_id?: string;
+  agent_name?: string;
+  agent_emoji?: string;
   sender_type?: 'human' | 'agent' | 'external_agent';
   tool_name?: string;
   tool_input?: string;
@@ -85,6 +89,9 @@ interface MessageRow {
   role: string;
   content: string;            // stored as JSON array string in schema, but we flatten to string here
   agent_id: string;
+  agent_name: string;
+  agent_emoji: string;
+  sender_type: string;
   tool_name: string | null;
   tool_input: string | null;
   tool_result: string | null;
@@ -159,7 +166,9 @@ function rowToMessageInfo(row: MessageRow): MessageInfo {
     role: row.role,
     content: contentToString(row.content),
     agent_id: row.agent_id ?? '',
-    sender_type: (row as MessageRow & { sender_type?: string }).sender_type as MessageInfo['sender_type'] ?? 'human',
+    agent_name: row.agent_name ?? '',
+    agent_emoji: row.agent_emoji ?? '',
+    sender_type: row.sender_type as MessageInfo['sender_type'] ?? 'human',
     tool_name: row.tool_name ?? '',
     tool_input: row.tool_input ?? '',
     tool_result: row.tool_result ?? '',
@@ -273,13 +282,15 @@ export class SessionManager {
 
     this.db.prepare(`
       INSERT INTO messages
-        (id, session_id, role, agent_id, sender_type, content, tokens_input, tokens_output, cost, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, session_id, role, agent_id, agent_name, agent_emoji, sender_type, content, tokens_input, tokens_output, cost, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       sessionId,
       msg.role,
       msg.agent_id ?? '',
+      msg.agent_name ?? '',
+      msg.agent_emoji ?? '',
       msg.sender_type ?? 'human',
       contentJson,
       msg.tokens_in ?? 0,
@@ -297,6 +308,8 @@ export class SessionManager {
       role: msg.role,
       content: msg.content,
       agent_id: msg.agent_id ?? '',
+      agent_name: msg.agent_name ?? '',
+      agent_emoji: msg.agent_emoji ?? '',
       sender_type: msg.sender_type ?? 'human',
       tool_name: msg.tool_name ?? '',
       tool_input: msg.tool_input ?? '',

@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { SquadRepository } from '../db/squads.js';
 import type { SquadMemberRepository } from '../db/squad-members.js';
+import type { AgentRepository } from '../db/agents.js';
+import type { ExternalAgentRepository } from '../db/external-agents.js';
 import type { SquadCreateInput } from '@superclaw/shared';
 
 // ── Squad Templates ──────────────────────────────────────────────────────────
@@ -39,9 +41,30 @@ export type SquadTemplate = (typeof SQUAD_TEMPLATES)[number];
 
 // ── Route Registration ────────────────────────────────────────────────────────
 
-export function registerSquadRoutes(app: FastifyInstance, squads: SquadRepository, members?: SquadMemberRepository) {
+export function registerSquadRoutes(app: FastifyInstance, squads: SquadRepository, members?: SquadMemberRepository, agentRepo?: AgentRepository, extAgentRepo?: ExternalAgentRepository) {
   app.get('/squads', async () => {
-    return { data: squads.list() };
+    const list = squads.list();
+    // Expand agent objects for each squad using squad_members
+    const expanded = list.map((squad) => {
+      const memberRows = members?.listBySquad(squad.id) ?? [];
+      const agentIds = memberRows.length > 0
+        ? memberRows
+            .sort((a, b) => ((a as unknown as { position?: number }).position ?? 0) - ((b as unknown as { position?: number }).position ?? 0))
+            .map((m) => m.agentId)
+        : squad.agentIds;
+      const agents = agentIds
+        .map((id) => {
+          // Try local agents first, then external agents
+          const local = agentRepo?.getById(id);
+          if (local) return { id: local.id, name: local.name, emoji: local.emoji ?? '', role: local.role ?? '', type: 'local' as const };
+          const ext = extAgentRepo?.getById(id);
+          if (ext) return { id: ext.id, name: ext.name, emoji: ext.emoji ?? '', role: ext.role ?? '', type: 'external' as const };
+          return null;
+        })
+        .filter(Boolean);
+      return { ...squad, agentIds, agents };
+    });
+    return { data: expanded };
   });
 
   // List squad templates (read-only, not stored in DB)

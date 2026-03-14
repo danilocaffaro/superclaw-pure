@@ -460,6 +460,8 @@ export async function* runAgent(
       role: 'assistant',
       content: fullAssistantText,
       agent_id: agentConfig.id,
+      agent_name: agentConfig.name ?? '',
+      agent_emoji: (agentConfig as { emoji?: string }).emoji ?? '',
       sender_type: 'agent',
       tokens_in: totalTokensIn,
       tokens_out: totalTokensOut,

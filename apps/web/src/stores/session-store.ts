@@ -156,7 +156,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       const data = await apiFetch<{ data: Message[] } | Message[]>(
         `/sessions/${encodeURIComponent(sessionId)}/messages`
       );
-      const messages = Array.isArray(data) ? data : (data as { data: Message[] }).data ?? [];
+      const rawMsgs = Array.isArray(data) ? data : (data as { data: Message[] }).data ?? [];
+      // M13: Map snake_case DB fields to camelCase frontend fields
+      const messages = rawMsgs.map((m) => ({
+        ...m,
+        agentId: m.agentId ?? (m as unknown as { agent_id?: string }).agent_id ?? '',
+        agentName: m.agentName ?? (m as unknown as { agent_name?: string }).agent_name ?? '',
+        agentEmoji: m.agentEmoji ?? (m as unknown as { agent_emoji?: string }).agent_emoji ?? '',
+      }));
       set({ messages });
     } catch (e) {
       console.error('fetchMessages error:', e);

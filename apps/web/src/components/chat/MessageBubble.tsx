@@ -179,9 +179,11 @@ export function MessageBubble({ msg }: { msg: Message }) {
   // Multi-agent attribution — prefer msg fields, then resolved agent from store
   const rawName = msg.agentName ?? resolvedAgent?.name ?? '';
   const agentId = msg.agentId ?? resolvedAgent?.id ?? '';
-  const agentName = cleanAgentName(agentId, rawName);
+  // M13: If agentId exists but no name resolved yet, show truncated id as fallback (not "🤖 Assistant")
+  const agentName = cleanAgentName(agentId, rawName) || (agentId ? `Agent ${agentId.slice(0, 8)}` : '');
   const agentEmoji = msg.agentEmoji ?? resolvedAgent?.emoji ?? '🤖';
-  const hasAgentAttribution = !effectiveIsUser && (msg.agentId || msg.agentName || resolvedAgent);
+  // M13: hasAgentAttribution is true whenever there's any agent signal (id, name, or resolved)
+  const hasAgentAttribution = !effectiveIsUser && Boolean(msg.agentId || msg.agentName || resolvedAgent);
 
   // Check if user message contains file references that need markdown rendering
   const hasFileRefs = effectiveIsUser && /\[(?:File|Image):\s[^\]]+\]\(file:\/\//.test(displayContent);

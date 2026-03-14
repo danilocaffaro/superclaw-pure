@@ -269,6 +269,8 @@ async function* runExternalAgent(
       role: 'assistant',
       content: response,
       agent_id: agent.id,
+      agent_name: agent.name,
+      agent_emoji: agent.emoji ?? '',
       sender_type: 'external_agent',
     });
   } catch (err) {

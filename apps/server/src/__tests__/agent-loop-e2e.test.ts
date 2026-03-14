@@ -27,7 +27,8 @@ const SESSION_SCHEMA = `
   );
   CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    role TEXT NOT NULL, agent_id TEXT DEFAULT '', content TEXT NOT NULL DEFAULT '[]',
+    role TEXT NOT NULL, agent_id TEXT DEFAULT '', agent_name TEXT DEFAULT '', agent_emoji TEXT DEFAULT '', sender_type TEXT DEFAULT 'human',
+    content TEXT NOT NULL DEFAULT '[]',
     tokens_input INTEGER DEFAULT 0, tokens_output INTEGER DEFAULT 0,
     cost REAL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );

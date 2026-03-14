@@ -113,7 +113,8 @@ interface PendingToolCall {
 // ─── Cost estimation ─────────────────────────────────────────────────────────
 
 import { estimateTokenCost } from '../config/pricing.js';
-import { TOOL_LIMITS } from '../config/defaults.js';
+import { TOOL_LIMITS, ENABLE_MESSAGE_BUS } from '../config/defaults.js';
+import { messageBus } from './message-bus.js';
 
 // ─── Core agentic loop ────────────────────────────────────────────────────────
 
@@ -212,7 +213,15 @@ export async function* runAgent(
   }
 
   // ── 5. Signal start ──────────────────────────────────────────────────────────
-  yield { event: 'message.start', data: { sessionId, agentId: agentConfig.id } };
+  const startEvent: SSEEvent = { event: 'message.start', data: { sessionId, agentId: agentConfig.id } };
+  yield startEvent;
+  if (ENABLE_MESSAGE_BUS) {
+    messageBus.publish(sessionId, 'message.start', {
+      agentId: agentConfig.id,
+      agentName: agentConfig.name ?? '',
+      agentEmoji: agentConfig.emoji ?? '',
+    });
+  }
 
   // ── 5.5 Loop detector ─────────────────────────────────────────────────────────
   const loopDetector = new LoopDetector();
@@ -280,6 +289,9 @@ export async function* runAgent(
           fullAssistantText += chunk.text;
           // ── 7b. Text delta event ─────────────────────────────────────────
           yield { event: 'message.delta', data: { text: chunk.text } };
+          if (ENABLE_MESSAGE_BUS) {
+            messageBus.publish(sessionId, 'message.delta', { text: chunk.text ?? '', agentId: agentConfig.id ?? '' });
+          }
 
         } else if (chunk.type === 'tool_call') {
           // ── 7b. Tool call detected ───────────────────────────────────────
@@ -490,6 +502,13 @@ export async function* runAgent(
       cost,
     },
   };
+  if (ENABLE_MESSAGE_BUS) {
+    messageBus.publish(sessionId, 'message.finish', {
+      tokens_in: totalTokensIn,
+      tokens_out: totalTokensOut,
+      cost,
+    });
+  }
 
   // ── 10. Background memory extraction (non-blocking) ───────────────────────
   // Extract durable facts from the user message + assistant response + tool outputs

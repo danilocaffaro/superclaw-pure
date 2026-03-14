@@ -37,6 +37,7 @@ import {
 } from './archer-router.js';
 import { ExternalAgentRepository } from '../db/external-agents.js';
 import { initDatabase } from '../db/index.js';
+import { ENABLE_MESSAGE_BUS } from '../config/defaults.js';
 
 // ─── ARCHER v2 helpers ────────────────────────────────────────────────────────
 

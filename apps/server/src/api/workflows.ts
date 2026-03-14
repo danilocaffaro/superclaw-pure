@@ -154,10 +154,11 @@ export function registerWorkflowRoutes(
     const bus: MessageBus = engine.bus;
     const runTopic = `workflow.run.${run.id}`;
 
-    const unsub = bus.subscribe(runTopic, (msg) => {
+    const unsub = bus.subscribe(runTopic, (msg: unknown) => {
       // Engine publishes: content = JSON.stringify({ topic: 'step.start', runId, ... })
+      const legacyMsg = msg as { content?: string };
       try {
-        const payload = JSON.parse(msg.content);
+        const payload = JSON.parse(legacyMsg.content ?? '{}');
         const eventType: string | undefined = payload.topic;
         if (eventType) {
           reply.raw.write(`event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`);
@@ -168,7 +169,7 @@ export function registerWorkflowRoutes(
         }
       } catch {
         // If content is not JSON, send as generic event
-        reply.raw.write(`event: message\ndata: ${JSON.stringify({ content: msg.content })}\n\n`);
+        reply.raw.write(`event: message\ndata: ${JSON.stringify({ content: legacyMsg.content })}\n\n`);
       }
     });
 

@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { useSquadStore } from '@/stores/squad-store';
 import { useAgentStore } from '@/stores/agent-store';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useSessionEvents } from '@/hooks/useSessionEvents';
 
 // Split components (was 1311 lines, now modular)
 import { MessageBubble, LoadingSkeleton } from './chat/MessageBubble';
@@ -21,12 +22,36 @@ import { InputBar, type Attachment } from './chat/InputBar';
 export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { messages, activeSessionId, activeSquadId, isStreaming, sendMessage, createSession, messageQueue } = useSessionStore();
+  const { messages, activeSessionId, activeSquadId, isStreaming, sendMessage, createSession, messageQueue, addMessage, appendToLastMessage, setStreaming } = useSessionStore();
   const squads = useSquadStore((s) => s.squads);
   const interfaceMode = useUIStore(s => s.interfaceMode);
   const isMobile = useIsMobile();
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+
+  // ── Global SSE connection (Blueprint Sprint A) ──────────────────────────────
+  // When NEXT_PUBLIC_ENABLE_MESSAGE_BUS=true, opens a persistent EventSource to
+  // GET /api/sessions/:id/events so ALL agent events arrive in real-time.
+  // When flag is off (default), falls back to inline SSE from sendMessage().
+  useSessionEvents(activeSessionId, (evt) => {
+    if (evt.event === 'message.start' && evt.data) {
+      addMessage({
+        id: evt.data.id ?? crypto.randomUUID(),
+        session_id: activeSessionId!,
+        role: 'assistant' as const,
+        content: '',
+        created_at: new Date().toISOString(),
+        agentId: evt.data.agentId,
+        agentName: evt.data.agentName,
+        agentEmoji: evt.data.agentEmoji,
+      });
+      setStreaming(true);
+    } else if (evt.event === 'message.delta' && evt.data?.text) {
+      appendToLastMessage(evt.data.text);
+    } else if (evt.event === 'message.finish') {
+      setStreaming(false);
+    }
+  });
 
   // Count queued messages for active session
   const queuedCount = activeSessionId ? (messageQueue.get(activeSessionId)?.length ?? 0) : 0;

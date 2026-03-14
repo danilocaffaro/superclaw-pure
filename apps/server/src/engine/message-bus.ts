@@ -1,108 +1,162 @@
-// ============================================================
-// Message Bus — Central pub/sub router for agent-to-agent communication
-// ============================================================
+/**
+ * message-bus.ts — Central pub/sub EventEmitter for per-session events.
+ *
+ * Architecture note (HiveClaw Blueprint §5, Sprint A):
+ * - In-process EventEmitter (single-instance limitation — see Blueprint §5 for Redis migration path)
+ * - Guarded by ENABLE_MESSAGE_BUS feature flag (default OFF until Sprint B frontend is ready)
+ * - Used by agent-runner and squad-runner to publish events
+ * - Consumed by GET /engine/events/:sessionId SSE endpoint
+ *
+ * Event flow:
+ *   agent-runner/squad-runner → messageBus.publish(sessionId, event)
+ *       → SSE endpoint emits to connected EventSource clients
+ */
 
-import { EventEmitter } from 'events';
-import { v4 as uuid } from 'uuid';
+import { EventEmitter } from 'node:events';
 
-// ─── Message Types ────────────────────────────────────────────────────────────
+// ─── Event Types ─────────────────────────────────────────────────────────────────
 
-export interface AgentMessage {
-  id: string;
-  from: string;           // agentId, 'system', or 'user'
-  to: string;             // agentId or topic like 'squad.{id}'
-  type: 'request' | 'response' | 'broadcast' | 'delegate' | 'consensus' | 'status';
+export type BusEventType =
+  | 'message.start'
+  | 'message.delta'
+  | 'message.finish'
+  | 'typing.start'
+  | 'typing.stop'
+  | 'tool.start'
+  | 'tool.finish'
+  | 'error'
+  | 'session.end';
+
+export interface BusEvent {
+  event: BusEventType;
+  sessionId: string;
+  data: Record<string, unknown>;
+  ts: number; // unix ms
+}
+
+export type BusEventMap = {
+  'message.start': BusEvent & { data: { agentId: string; agentName: string; agentEmoji?: string } };
+  'message.delta': BusEvent & { data: { text: string; agentId?: string; isHeader?: boolean } };
+  'message.finish': BusEvent & { data: { tokens_in: number; tokens_out: number; cost?: number } };
+  'typing.start': BusEvent & { data: { agentId: string } };
+  'typing.stop': BusEvent & { data: { agentId: string } };
+  'tool.start': BusEvent & { data: { tool: string; agentId?: string } };
+  'tool.finish': BusEvent & { data: { tool: string; result?: unknown; agentId?: string } };
+  'error': BusEvent & { data: { message: string; code: string } };
+  'session.end': BusEvent & { data: Record<string, never> };
+};
+
+// ─── Internal listener type ───────────────────────────────────────────────────────
+
+type BusListener = (event: BusEvent) => void;
+type LegacyBusListener = (event: LegacyBusMessage) => void;
+
+// ─── MessageBus ──────────────────────────────────────────────────────────────────
+
+// ─── Legacy API compatibility ─────────────────────────────────────────────────
+// agent-worker.ts and workflows.ts use an older publish signature: { id, from, to, type, content, metadata }
+// This adapter makes MessageBus compatible with both APIs.
+
+export interface LegacyBusMessage {
+  id?: string;
+  from: string;
+  to: string;
+  type: string;
   content: string;
-  metadata: {
-    sessionId: string;
-    squadId?: string;
-    replyTo?: string;
-    priority: number;
-    timestamp: number;
-  };
+  metadata?: Record<string, unknown>;
 }
 
-// ─── History Filter Options ───────────────────────────────────────────────────
-
-export interface HistoryFilterOptions {
-  agentId?: string;
-  sessionId?: string;
-  limit?: number;
-}
-
-// ─── Message Bus ──────────────────────────────────────────────────────────────
+/** @deprecated Use LegacyBusMessage — kept for backward compat */
+export type AgentMessage = LegacyBusMessage;
 
 export class MessageBus {
-  private emitter = new EventEmitter();
-  private history: AgentMessage[] = [];
-  private maxHistory = 1000;
+  private readonly emitter = new EventEmitter();
+  /** Track listener count per session for leak detection */
+  private readonly listenerCounts = new Map<string, number>();
 
   constructor() {
-    this.emitter.setMaxListeners(100);
+    // Prevent Node.js default MaxListenersExceededWarning.
+    // Each session can have up to 50 concurrent SSE subscribers.
+    this.emitter.setMaxListeners(500);
   }
 
   /**
-   * Publish a message to the bus.
-   * Emits to:
-   *   1. `agent.{to}.inbox` — direct delivery to target agent
-   *   2. `{to}` — topic-based delivery (e.g. squad broadcasts)
-   *   3. `message` — global event for monitoring / debugging
+   * Publish an event to all subscribers of a session (new API).
    */
-  publish(msg: Omit<AgentMessage, 'id'>): AgentMessage {
-    const full: AgentMessage = { ...msg, id: uuid() };
-    this.history.push(full);
-    if (this.history.length > this.maxHistory) {
-      this.history.shift();
+  publish<T extends BusEventType>(
+    sessionIdOrLegacy: string | LegacyBusMessage,
+    event?: T,
+    data?: BusEventMap[T]['data'],
+  ): void {
+    // Legacy API: agent-worker/workflow-engine passes { from, to, type, content, metadata }
+    if (typeof sessionIdOrLegacy === 'object') {
+      const msg = sessionIdOrLegacy;
+      // Emit to the 'to' topic so workflow subscribers receive it
+      this.emitter.emit(`session:${msg.to}`, msg);
+      return;
     }
 
-    // Emit to specific target
-    this.emitter.emit(`agent.${msg.to}.inbox`, full);
-    // Emit to topic (for squad broadcasts)
-    this.emitter.emit(msg.to, full);
-    // Global event for monitoring
-    this.emitter.emit('message', full);
+    const sessionId = sessionIdOrLegacy;
+    if (!event || !data) return;
 
-    return full;
+    const payload: BusEvent = {
+      event,
+      sessionId,
+      data: data as Record<string, unknown>,
+      ts: Date.now(),
+    };
+    this.emitter.emit(`session:${sessionId}`, payload);
   }
 
   /**
-   * Subscribe to a topic or agent inbox.
-   * Returns an unsubscribe function.
+   * Subscribe to events.
+   *
+   * New API: subscribe(sessionId, listener: BusListener) → unsubscribe fn
+   * Legacy API: subscribe(topic, listener: (msg: LegacyBusMessage) => void) → unsubscribe fn
+   *   (Used by workflow-engine.ts and workflows.ts)
    */
-  subscribe(topic: string, handler: (msg: AgentMessage) => void): () => void {
-    this.emitter.on(topic, handler);
+  subscribe(sessionId: string, listener: BusListener | LegacyBusListener): () => void {
+    const key = `session:${sessionId}`;
+    this.emitter.on(key, listener);
+
+    // Track listener count for diagnostics
+    const count = (this.listenerCounts.get(sessionId) ?? 0) + 1;
+    this.listenerCounts.set(sessionId, count);
+
+    // Return cleanup function
     return () => {
-      this.emitter.off(topic, handler);
+      this.emitter.off(key, listener);
+      const remaining = (this.listenerCounts.get(sessionId) ?? 1) - 1;
+      if (remaining <= 0) {
+        this.listenerCounts.delete(sessionId);
+      } else {
+        this.listenerCounts.set(sessionId, remaining);
+      }
     };
   }
 
   /**
-   * Retrieve message history, optionally filtered by agent, session, or limited.
+   * Returns active subscriber count for a session.
+   * Useful for diagnostics and tests.
    */
-  getHistory(opts?: HistoryFilterOptions): AgentMessage[] {
-    let msgs = this.history;
-    if (opts?.agentId) {
-      msgs = msgs.filter(m => m.from === opts.agentId || m.to === opts.agentId);
-    }
-    if (opts?.sessionId) {
-      msgs = msgs.filter(m => m.metadata.sessionId === opts.sessionId);
-    }
-    return opts?.limit ? msgs.slice(-opts.limit) : msgs;
+  subscriberCount(sessionId: string): number {
+    return this.listenerCounts.get(sessionId) ?? 0;
   }
 
   /**
-   * Clear all message history.
+   * Remove all listeners for a session (e.g. on session delete).
    */
-  clear(): void {
-    this.history = [];
+  purge(sessionId: string): void {
+    this.emitter.removeAllListeners(`session:${sessionId}`);
+    this.listenerCounts.delete(sessionId);
   }
 }
 
-// ─── Singleton ────────────────────────────────────────────────────────────────
+// ─── Singleton ───────────────────────────────────────────────────────────────────
 
-let _bus: MessageBus | null = null;
+export const messageBus = new MessageBus();
 
+/** Convenience accessor for modules that prefer a getter pattern */
 export function getMessageBus(): MessageBus {
-  if (!_bus) _bus = new MessageBus();
-  return _bus;
+  return messageBus;
 }

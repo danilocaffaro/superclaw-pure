@@ -79,8 +79,8 @@ export class AgentWorker extends EventEmitter {
 
   start(): void {
     const bus = getMessageBus();
-    this.unsubscribe = bus.subscribe(`agent.${this.agentId}.inbox`, (msg) => {
-      this.inbox.push(msg);
+    this.unsubscribe = bus.subscribe(`agent.${this.agentId}.inbox`, (msg: unknown) => {
+      this.inbox.push(msg as AgentMessage);
       void this.processQueue();
     });
     this.setState('idle');
@@ -104,9 +104,9 @@ export class AgentWorker extends EventEmitter {
     type: AgentMessage['type'] = 'request',
     sessionId = '',
     replyTo?: string,
-  ): AgentMessage {
+  ): void {
     const bus = getMessageBus();
-    return bus.publish({
+    bus.publish({
       from: this.agentId,
       to,
       type,
@@ -163,7 +163,7 @@ export class AgentWorker extends EventEmitter {
         // The agent can respond via the bus.
         const chunks: string[] = [];
         for await (const event of runAgent(
-          msg.metadata.sessionId || `bus-${uuid()}`,
+          (msg.metadata as Record<string, string>)?.sessionId || `bus-${uuid()}`,
           `[Message from ${msg.from}]: ${msg.content}`,
           this.config,
         )) {
@@ -175,7 +175,7 @@ export class AgentWorker extends EventEmitter {
 
         // Send response back via bus
         if (chunks.length > 0 && msg.type === 'request') {
-          this.send(msg.from, chunks.join(''), 'response', msg.metadata.sessionId, msg.id);
+          this.send(msg.from, chunks.join(''), 'response', (msg.metadata as Record<string, string>)?.sessionId ?? '', msg.id);
         }
       } catch (err) {
         this.setState('error');

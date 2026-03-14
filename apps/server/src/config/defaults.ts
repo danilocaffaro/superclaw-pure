@@ -95,6 +95,17 @@ export const TOOL_LIMITS = {
   SMART_COMPACT_TOKENS: 80_000,
 };
 
+// ─── Feature Flags ──────────────────────────────────────────────────────────────
+
+/**
+ * ENABLE_MESSAGE_BUS — Sprint A/B feature flag.
+ * OFF (default): agent-runner/squad-runner use legacy inline SSE only.
+ * ON: additionally publish to MessageBus for global SSE endpoint (/engine/events/:sessionId).
+ * Never enable dual-mode — flip to ON only after Sprint B frontend is complete.
+ */
+export const ENABLE_MESSAGE_BUS =
+  (process.env.ENABLE_MESSAGE_BUS ?? 'false').toLowerCase() === 'true';
+
 // ─── System Task Quality Floors ─────────────────────────────────────────────────
 // Minimum quality scores for internal system tasks.
 // See engine/smart-router.ts QUALITY_FLOORS for authoritative values.

@@ -15,6 +15,7 @@ import { CollapsedIconBar } from './CollapsedIconBar';
 import { ModeToggle } from './ModeToggle';
 import { AgentFormModal } from './modals/AgentFormModal';
 import { SquadFormModal } from './modals/SquadFormModal';
+import InviteExternalModal from '../InviteExternalModal';
 // InviteAgentModal removed — Pure uses local agent creation, not gateway pairing
 import { cleanAgentName } from '@/lib/agent-utils';
 
@@ -83,6 +84,9 @@ export default function Sidebar() {
 
   // Squad form modal state
   const [squadModalOpen, setSquadModalOpen] = useState(false);
+
+  // L-9: External agent invite modal
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const openCreateAgent = () => {
     setEditingAgent(null);
@@ -463,6 +467,7 @@ export default function Sidebar() {
           onClose={() => setSquadModalOpen(false)}
         />
       )}
+      <InviteExternalModal open={inviteModalOpen} onClose={() => setInviteModalOpen(false)} />
     </>
   );
 }

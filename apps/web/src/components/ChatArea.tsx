@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { useSessionStore, type Message } from '@/stores/session-store';
+import { useMessageStore } from '@/stores/message-store';
 import { useUIStore } from '@/stores/ui-store';
 import { useSquadStore } from '@/stores/squad-store';
 import { useAgentStore } from '@/stores/agent-store';
@@ -22,7 +23,12 @@ import { InputBar, type Attachment } from './chat/InputBar';
 export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { messages, activeSessionId, activeSquadId, isStreaming, sendMessage, createSession, messageQueue, addMessage, appendToLastMessage, setStreaming } = useSessionStore();
+  const { activeSessionId, activeSquadId, isStreaming, sendMessage, createSession, messageQueue, setStreaming } = useSessionStore();
+  // B3: Read messages from message-store (keyed by sessionId) instead of session-store flat array
+  const getMessages = useMessageStore((s) => s.getMessages);
+  const addMessageToStore = useMessageStore((s) => s.addMessage);
+  const appendToStore = useMessageStore((s) => s.appendToLastMessage);
+  const messages = activeSessionId ? getMessages(activeSessionId) : [];
   const squads = useSquadStore((s) => s.squads);
   const interfaceMode = useUIStore(s => s.interfaceMode);
   const isMobile = useIsMobile();
@@ -34,10 +40,11 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
   // GET /api/sessions/:id/events so ALL agent events arrive in real-time.
   // When flag is off (default), falls back to inline SSE from sendMessage().
   useSessionEvents(activeSessionId, (evt) => {
+    if (!activeSessionId) return;
     if (evt.event === 'message.start' && evt.data) {
-      addMessage({
+      addMessageToStore(activeSessionId, {
         id: evt.data.id ?? crypto.randomUUID(),
-        session_id: activeSessionId!,
+        session_id: activeSessionId,
         role: 'assistant' as const,
         content: '',
         created_at: new Date().toISOString(),
@@ -47,7 +54,7 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
       });
       setStreaming(true);
     } else if (evt.event === 'message.delta' && evt.data?.text) {
-      appendToLastMessage(evt.data.text);
+      appendToStore(activeSessionId, evt.data.text);
     } else if (evt.event === 'message.finish') {
       setStreaming(false);
     }

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useMessageStore } from './message-store';
 
 export interface Session {
   id: string;
@@ -93,6 +94,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setSessions: (sessions) => set({ sessions }),
   setActiveSession: (id) => {
     const session = get().sessions.find((s) => s.id === id);
+    // B6: Clear unread badge when opening a session
+    if (id) useMessageStore.getState().clearUnread(id);
     set({
       activeSessionId: id,
       activeSquadId: session?.squad_id ?? null,
@@ -105,9 +108,23 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       try { localStorage.removeItem('hiveclaw-active-session'); } catch { /* noop */ }
     }
   },
-  setMessages: (messages) => set({ messages }),
-  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
-  appendToLastMessage: (text) =>
+  setMessages: (messages) => {
+    const { activeSessionId } = get();
+    if (activeSessionId) useMessageStore.getState().setMessages(activeSessionId, messages);
+    set({ messages });
+  },
+  addMessage: (message) => {
+    useMessageStore.getState().addMessage(message.session_id, message);
+    // B6: Increment unread badge if message is for a non-active session
+    const { activeSessionId } = get();
+    if (message.session_id !== activeSessionId && message.role === 'assistant') {
+      useMessageStore.getState().incrementUnread(message.session_id);
+    }
+    set((s) => ({ messages: [...s.messages, message] }));
+  },
+  appendToLastMessage: (text) => {
+    const { activeSessionId } = get();
+    if (activeSessionId) useMessageStore.getState().appendToLastMessage(activeSessionId, text);
     set((s) => {
       if (s.messages.length === 0) return s;
       const msgs = [...s.messages];
@@ -115,7 +132,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       last.content += text;
       msgs[msgs.length - 1] = last;
       return { messages: msgs };
-    }),
+    });
+  },
   setStreaming: (val) => set((s) => ({ isStreaming: val })),
   isSessionStreaming: (sessionId) => get().streamingSessions.has(sessionId),
 
@@ -176,6 +194,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         agentName: m.agentName ?? (m as unknown as { agent_name?: string }).agent_name ?? '',
         agentEmoji: m.agentEmoji ?? (m as unknown as { agent_emoji?: string }).agent_emoji ?? '',
       }));
+      // B3: Write to message-store (keyed by sessionId) AND session-store flat array (shim)
+      useMessageStore.getState().setMessages(sessionId, messages);
       set({ messages });
     } catch (e) {
       console.error('fetchMessages error:', e);

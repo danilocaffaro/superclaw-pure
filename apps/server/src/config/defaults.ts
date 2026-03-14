@@ -99,12 +99,13 @@ export const TOOL_LIMITS = {
 
 /**
  * ENABLE_MESSAGE_BUS — Sprint A/B feature flag.
- * OFF (default): agent-runner/squad-runner use legacy inline SSE only.
- * ON: additionally publish to MessageBus for global SSE endpoint (/engine/events/:sessionId).
+ * OFF: agent-runner/squad-runner use legacy inline SSE only.
+ * ON (default after Sprint B): additionally publish to MessageBus for global SSE endpoint.
  * Never enable dual-mode — flip to ON only after Sprint B frontend is complete.
+ * Sprint B: flag is ON by default — frontend now uses message-store + useSessionEvents.
  */
 export const ENABLE_MESSAGE_BUS =
-  (process.env.ENABLE_MESSAGE_BUS ?? 'false').toLowerCase() === 'true';
+  (process.env.ENABLE_MESSAGE_BUS ?? 'true').toLowerCase() === 'true';
 
 // ─── System Task Quality Floors ─────────────────────────────────────────────────
 // Minimum quality scores for internal system tasks.

@@ -3,6 +3,7 @@
 import React, { useState, type ReactNode } from 'react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { LinkPreviews } from './LinkPreview';
+import { AudioPlayer, isVoiceMessage } from './AudioPlayer';
 import type { Message } from '@/stores/session-store';
 import { useSessionStore } from '@/stores/session-store';
 import { DebateCard, WorkflowCard, SprintProgressCard } from '../SpecialCards';
@@ -206,6 +207,9 @@ export function MessageBubble({ msg }: { msg: Message }) {
   // Check if user message contains file references that need markdown rendering
   const hasFileRefs = effectiveIsUser && /\[(?:File|Image):\s[^\]]+\]\(file:\/\//.test(displayContent);
 
+  // F13/F14: Detect voice messages
+  const voiceSrc = isVoiceMessage(displayContent);
+
   // On mobile: WhatsApp-style — no avatar for user, tighter layout
   if (isMobile) {
     return (
@@ -248,7 +252,9 @@ export function MessageBubble({ msg }: { msg: Message }) {
             fontSize: 14, lineHeight: 1.55, color: effectiveIsUser ? '#fff' : 'var(--text)',
             wordBreak: 'break-word',
           }}>
-            {effectiveIsUser ? (
+            {voiceSrc ? (
+              <AudioPlayer src={voiceSrc} />
+            ) : effectiveIsUser ? (
               hasFileRefs ? (
                 <MarkdownRenderer content={displayContent} />
               ) : (
@@ -341,7 +347,9 @@ export function MessageBubble({ msg }: { msg: Message }) {
           WebkitUserSelect: 'text',
           cursor: effectiveIsUser ? 'text' : undefined,
         }}>
-          {effectiveIsUser ? (
+          {voiceSrc ? (
+            <AudioPlayer src={voiceSrc} />
+          ) : effectiveIsUser ? (
             hasFileRefs ? (
               <MarkdownRenderer content={displayContent} />
             ) : (

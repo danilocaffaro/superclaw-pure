@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useUIStore } from '@/stores/ui-store';
+import { VoiceRecorder } from './VoiceRecorder';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,36 @@ export function InputBar({ onSend }: { onSend: (text: string, attachments?: Atta
   }, []);
 
   const hasContent = text.trim() || attachments.length > 0;
+  const [isRecording, setIsRecording] = useState(false);
+
+  // F13: Handle voice send — upload blob then send as message
+  const handleVoiceSend = useCallback(async (blob: Blob, durationMs: number) => {
+    setIsRecording(false);
+    try {
+      const filename = `voice-${Date.now()}.webm`;
+      const file = new File([blob], filename, { type: blob.type || 'audio/webm' });
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+      const json = await res.json();
+      const uploaded = json.data?.[0];
+      if (uploaded) {
+        const dur = Math.round(durationMs / 1000);
+        onSend(`[Audio: ${filename} (${dur}s)](/api/files/uploads/${encodeURIComponent(uploaded.name)})`);
+      }
+    } catch (err) {
+      console.error('Voice upload failed:', err);
+    }
+  }, [onSend]);
+
+  // F13: Show VoiceRecorder instead of InputBar when recording
+  if (isRecording) {
+    return (
+      <div style={{ padding: isMobile ? '0 12px' : '0 20px', paddingBottom: isMobile ? 'max(12px, calc(12px + env(safe-area-inset-bottom)))' : '16px' }}>
+        <VoiceRecorder onSend={handleVoiceSend} onCancel={() => setIsRecording(false)} />
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -178,18 +209,32 @@ export function InputBar({ onSend }: { onSend: (text: string, attachments?: Atta
             disabled={false}
           />
 
-          {/* Send button */}
-          <button onClick={handleSend} disabled={!hasContent} style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: hasContent ? 'var(--coral)' : 'var(--surface)',
-            color: hasContent ? '#fff' : 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, flexShrink: 0, transition: 'all 150ms',
-            cursor: hasContent ? 'pointer' : 'default',
-            border: hasContent ? 'none' : '1px solid var(--border)',
-          }}>
-            ↑
-          </button>
+          {/* Send or Mic button */}
+          {hasContent ? (
+            <button onClick={handleSend} style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--coral)',
+              color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, flexShrink: 0, transition: 'all 150ms',
+              cursor: 'pointer',
+              border: 'none',
+            }}>
+              ↑
+            </button>
+          ) : (
+            <button onClick={() => setIsRecording(true)} aria-label="Record voice message" style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--surface)',
+              color: 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 16, flexShrink: 0, transition: 'all 150ms',
+              cursor: 'pointer',
+              border: '1px solid var(--border)',
+            }}>
+              🎙️
+            </button>
+          )}
         </div>
 
         {/* Bottom hints — desktop only */}

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { getWatchdog } from '../engine/self-watchdog.js';
 
 const VERSION = '0.1.0';
 
@@ -12,12 +13,15 @@ export function registerHealthRoutes(app: FastifyInstance) {
   });
 
   app.get('/status', async () => {
+    const watchdog = getWatchdog();
+    const snapshot = watchdog.getSnapshot();
     return {
       status: 'ok',
       version: VERSION,
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       engine: { type: 'native' },
+      watchdog: snapshot ?? { status: 'not yet checked' },
     };
   });
 

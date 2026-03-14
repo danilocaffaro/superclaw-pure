@@ -420,9 +420,15 @@ async function main() {
     process.exit(1);
   }
 
+  // ─── Self-Watchdog (autonomous health monitoring) ─────────────────────
+  const { getWatchdog } = await import('./engine/self-watchdog.js');
+  const watchdog = getWatchdog({ port: PORT });
+  watchdog.start();
+
   // Graceful shutdown
   const shutdown = () => {
     logger.info('\n✨ Shutting down...');
+    watchdog.stop();
     db.close();
     process.exit(0);
   };

@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import type Database from 'better-sqlite3';
 import type { Squad, SquadCreateInput } from '@superclaw/shared';
+import { sanitizeText } from '../utils/sanitize.js';
 
 interface SquadRow {
   id: string; name: string; emoji: string; description: string;
@@ -29,9 +30,9 @@ export class SquadRepository {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
-      input.name,
-      input.emoji ?? '🚀',
-      input.description ?? '',
+      sanitizeText(input.name),
+      sanitizeText(input.emoji ?? '🚀'),
+      sanitizeText(input.description ?? ''),
       JSON.stringify(input.agentIds),
       input.routingStrategy ?? 'auto',
       input.debateEnabled !== false ? 1 : 0,
@@ -48,9 +49,9 @@ export class SquadRepository {
     const fields: string[] = [];
     const values: (string | number | null)[] = [];
 
-    if (patch.name !== undefined) { fields.push('name = ?'); values.push(patch.name); }
-    if (patch.emoji !== undefined) { fields.push('emoji = ?'); values.push(patch.emoji); }
-    if (patch.description !== undefined) { fields.push('description = ?'); values.push(patch.description); }
+    if (patch.name !== undefined) { fields.push('name = ?'); values.push(sanitizeText(patch.name)); }
+    if (patch.emoji !== undefined) { fields.push('emoji = ?'); values.push(sanitizeText(patch.emoji)); }
+    if (patch.description !== undefined) { fields.push('description = ?'); values.push(sanitizeText(patch.description)); }
     if (patch.agentIds !== undefined) { fields.push('agent_ids = ?'); values.push(JSON.stringify(patch.agentIds)); }
     if (patch.routingStrategy !== undefined) { fields.push('routing_strategy = ?'); values.push(patch.routingStrategy); }
     if (patch.debateEnabled !== undefined) { fields.push('debate_enabled = ?'); values.push(patch.debateEnabled ? 1 : 0); }

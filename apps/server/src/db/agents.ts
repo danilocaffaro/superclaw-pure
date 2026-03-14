@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import type Database from 'better-sqlite3';
 import type { Agent, AgentCreateInput } from '@superclaw/shared';
+import { sanitizeText } from '../utils/sanitize.js';
 
 interface AgentRow {
   id: string; name: string; emoji: string; role: string; type: string;
@@ -31,9 +32,9 @@ export class AgentRepository {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
-      input.name,
-      input.emoji ?? '🤖',
-      input.role,
+      sanitizeText(input.name),
+      sanitizeText(input.emoji ?? '🤖'),
+      sanitizeText(input.role),
       input.type ?? 'specialist',
       input.systemPrompt,
       JSON.stringify(input.skills ?? []),
@@ -56,9 +57,9 @@ export class AgentRepository {
     const fields: string[] = [];
     const values: any[] = [];
 
-    if (patch.name !== undefined) { fields.push('name = ?'); values.push(patch.name); }
-    if (patch.emoji !== undefined) { fields.push('emoji = ?'); values.push(patch.emoji); }
-    if (patch.role !== undefined) { fields.push('role = ?'); values.push(patch.role); }
+    if (patch.name !== undefined) { fields.push('name = ?'); values.push(sanitizeText(patch.name)); }
+    if (patch.emoji !== undefined) { fields.push('emoji = ?'); values.push(sanitizeText(patch.emoji)); }
+    if (patch.role !== undefined) { fields.push('role = ?'); values.push(sanitizeText(patch.role)); }
     if (patch.type !== undefined) { fields.push('type = ?'); values.push(patch.type); }
     if (patch.systemPrompt !== undefined) { fields.push('system_prompt = ?'); values.push(patch.systemPrompt); }
     if (patch.skills !== undefined) { fields.push('skills = ?'); values.push(JSON.stringify(patch.skills)); }

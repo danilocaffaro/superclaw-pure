@@ -111,9 +111,10 @@ export function registerProviderRoutes(app: FastifyInstance, repo: ProviderRepos
     try {
       const providers = repo.list();
       // Strip API keys from list — return "configured" boolean instead
+      // Use status field (derived from raw key in rowToConfig) — NOT the masked apiKey
       const safe = providers.map(({ apiKey, ...rest }) => ({
         ...rest,
-        configured: !!apiKey && apiKey !== '' && !apiKey.startsWith('...'),
+        configured: rest.status === 'connected' || rest.type === 'ollama',
       }));
       return reply.send({ data: safe });
     } catch (err) {
@@ -324,7 +325,7 @@ export function registerProviderRoutes(app: FastifyInstance, repo: ProviderRepos
       const providers = repo.list();
       const safe = providers.map(({ apiKey, ...rest }) => ({
         ...rest,
-        configured: !!apiKey && apiKey !== '' && !apiKey.startsWith('...'),
+        configured: rest.status === 'connected' || rest.type === 'ollama',
       }));
       return reply.send({ data: safe });
     } catch (err) {

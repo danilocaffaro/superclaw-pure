@@ -778,7 +778,7 @@ async function* runSequential(
         (prevContext !== message
           ? `Previous agent's analysis:\n${prevContext}\n\n`
           : '') +
-        `Build on this analysis. ${isLast ? 'Provide the final synthesized answer.' : 'Add your perspective.'}`;
+        (isLast ? 'Provide the final synthesized answer.' : 'Add your perspective.');
 
     yield {
       event: 'message.start',

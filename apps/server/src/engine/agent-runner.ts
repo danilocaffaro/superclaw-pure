@@ -440,11 +440,8 @@ export async function* runAgent(
 
     // Guard: if we've hit the max, break before the next LLM call
     if (iteration === maxIterations - 1) {
-      yield {
-        event: 'message.delta',
-        data: { text: '\n\n[Max tool iterations reached. Stopping.]' },
-      };
-      fullAssistantText += '\n\n[Max tool iterations reached. Stopping.]';
+      logger.warn(`[AgentRunner] Max tool iterations (${maxIterations}) reached for agent ${agentConfig.id}`);
+      // Internal-only: do NOT leak iteration limits to the user-visible chat
       break;
     }
   } // end agentic loop

@@ -63,6 +63,7 @@ import { registerN8nRoutes } from './api/n8n.js';
 import { registerExternalAgentRoutes } from './api/external-agents.js';
 import { registerSearchRoutes } from './api/search.js';
 import { registerOGPreviewRoutes } from './api/og-preview.js';
+import { registerMessageRoutes } from './api/messages.js';
 import { WorkflowRepository } from './db/workflow-repository.js';
 import { WorkflowEngine, seedBuiltinWorkflows } from './engine/workflow-engine.js';
 import { getMessageBus } from './engine/message-bus.js';
@@ -345,7 +346,7 @@ async function main() {
         '/n8n', '/preview', '/audit', '/integrations', '/webhooks',
         '/public', '/shared-links', '/backlog', '/routing', '/analytics',
         '/channels', '/embeddings', '/data', '/events', '/models', '/status', '/external-agents',
-        '/engine', '/search', '/preview/og'];
+        '/engine', '/search', '/preview/og', '/messages'];
       if (apiPrefixes.some(p => req.url.startsWith(p))) return;
 
       if (req.url.startsWith('/_next/')) {
@@ -417,6 +418,7 @@ async function main() {
   registerExternalAgentRoutes(app, db);
   registerSearchRoutes(app, db);
   registerOGPreviewRoutes(app);
+  registerMessageRoutes(app, db);
   registerN8nRoutes(app);
 
   // ─── Start ────────────────────────────────────────────────────────────

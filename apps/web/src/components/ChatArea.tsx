@@ -181,6 +181,43 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
     void navigator.clipboard.writeText(content);
   }, []);
 
+  // F16: Edit message handler
+  const handleEdit = useCallback(async (msg: Message) => {
+    const newContent = prompt('Edit message:', msg.content ?? '');
+    if (newContent === null || newContent === msg.content) return;
+    try {
+      const res = await fetch(`/api/messages/${msg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      });
+      if (res.ok && activeSessionId) {
+        // Refresh messages
+        const { fetchMessages } = useSessionStore.getState();
+        fetchMessages(activeSessionId);
+      }
+    } catch { /* ignore */ }
+  }, [activeSessionId]);
+
+  // F17: Delete message handler
+  const handleDelete = useCallback(async (msgId: string) => {
+    if (!confirm('Delete this message?')) return;
+    try {
+      const res = await fetch(`/api/messages/${msgId}?mode=soft`, { method: 'DELETE' });
+      if (res.ok && activeSessionId) {
+        const { fetchMessages } = useSessionStore.getState();
+        fetchMessages(activeSessionId);
+      }
+    } catch { /* ignore */ }
+  }, [activeSessionId]);
+
+  // F18: Pin message handler
+  const handlePin = useCallback(async (msgId: string) => {
+    try {
+      await fetch(`/api/messages/${msgId}/pin`, { method: 'POST' });
+    } catch { /* ignore */ }
+  }, []);
+
   // F1: Reply handler
   const handleReply = useCallback((msg: Message) => {
     const name = msg.role === 'user' ? 'You' : (msg.agentName ?? 'Assistant');
@@ -295,6 +332,11 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
           actions={[
             { icon: '💬', label: 'Reply', onClick: () => handleReply(contextMenu.msg) },
             { icon: '📋', label: 'Copy', onClick: () => handleCopy(contextMenu.msg.content ?? '') },
+            ...(contextMenu.msg.role === 'user' ? [
+              { icon: '✏️', label: 'Edit', onClick: () => handleEdit(contextMenu.msg) },
+            ] : []),
+            { icon: '📌', label: 'Pin', onClick: () => handlePin(contextMenu.msg.id) },
+            { icon: '🗑️', label: 'Delete', onClick: () => handleDelete(contextMenu.msg.id) },
           ]}
         />
       )}

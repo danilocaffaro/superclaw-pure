@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SectionTitle } from './shared';
 import { useUIStore } from '@/stores/ui-store';
+import { useAgentStore } from '@/stores/agent-store';
+import { useSessionStore } from '@/stores/session-store';
 
 // ─── Models Tab ──────────────────────────────────────────────────────────────────
 
@@ -33,9 +35,30 @@ const PROVIDER_META: Record<string, { icon: string; displayName: string }> = {
 
 export default function ModelsTab() {
   const { selectedModel, setSelectedModel } = useUIStore();
+  const updateAgent = useAgentStore((s) => s.updateAgent);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const sessions = useSessionStore((s) => s.sessions);
+  const storeAgents = useAgentStore((s) => s.agents);
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeAgent = activeSession?.agent_id
+    ? storeAgents.find((a) => a.id === activeSession.agent_id)
+    : null;
   const [dailyTokensK, setDailyTokensK] = useState(100);
   const [allModels, setAllModels] = useState<ModelDef[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Persist model selection to active agent
+  const handleModelSelect = useCallback((modelId: string) => {
+    setSelectedModel(modelId);
+    if (activeAgent?.id) {
+      const [providerId, ...modelParts] = modelId.split('/');
+      const modelName = modelParts.join('/');
+      void updateAgent(activeAgent.id, {
+        modelPreference: modelName,
+        providerPreference: providerId,
+      });
+    }
+  }, [activeAgent?.id, setSelectedModel, updateAgent]);
 
   // Fetch models from providers API
   useEffect(() => {
@@ -173,7 +196,7 @@ export default function ModelsTab() {
               return (
                 <button
                   key={model.id}
-                  onClick={() => setSelectedModel(model.id)}
+                  onClick={() => handleModelSelect(model.id)}
                   style={{
                     display: 'flex', alignItems: 'flex-start', gap: 12,
                     padding: '12px 14px',

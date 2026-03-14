@@ -50,6 +50,7 @@ export default function ModelSelector() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
   const agents = useAgentStore((s) => s.agents);
+  const updateAgent = useAgentStore((s) => s.updateAgent);
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const activeAgent = activeSession?.agent_id
     ? agents.find((a) => a.id === activeSession.agent_id)
@@ -274,6 +275,15 @@ export default function ModelSelector() {
                     onClick={() => {
                       setSelectedModel(model.id);
                       setOpen(false);
+                      // Persist model selection to active agent
+                      if (activeAgent?.id) {
+                        const [providerId, ...modelParts] = model.id.split('/');
+                        const modelId = modelParts.join('/');
+                        void updateAgent(activeAgent.id, {
+                          modelPreference: modelId,
+                          providerPreference: providerId,
+                        });
+                      }
                     }}
                     style={{
                       width: '100%',

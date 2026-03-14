@@ -20,11 +20,13 @@ import { InputBar, type Attachment } from './chat/InputBar';
 
 export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { messages, activeSessionId, activeSquadId, isStreaming, sendMessage, createSession, messageQueue } = useSessionStore();
   const squads = useSquadStore((s) => s.squads);
   const interfaceMode = useUIStore(s => s.interfaceMode);
   const isMobile = useIsMobile();
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
 
   // Count queued messages for active session
   const queuedCount = activeSessionId ? (messageQueue.get(activeSessionId)?.length ?? 0) : 0;
@@ -45,9 +47,27 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
     }
   }, [messages, activeSessionId]);
 
+  // When switching sessions/squads → always jump to bottom instantly and re-enable auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    setAutoScroll(true);
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [activeSessionId, activeSquadId]);
+
+  // When new messages arrive → scroll only if auto-scroll is enabled (user hasn't scrolled up)
+  useEffect(() => {
+    if (!autoScroll) return;
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, autoScroll]);
+
+  // Track manual scroll: if user scrolls up, disable auto-scroll; if at bottom, re-enable
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setAutoScroll(distanceFromBottom < 80);
+  };
 
   const handleSend = async (content: string, attachments?: Attachment[]) => {
     // Haptic feedback on mobile
@@ -119,7 +139,11 @@ export default function ChatArea({ hideHeader = false }: { hideHeader?: boolean 
       ) : isLoadingMessages ? (
         <LoadingSkeleton />
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px 12px' : '16px 24px' }}>
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px 12px' : '16px 24px' }}
+        >
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}

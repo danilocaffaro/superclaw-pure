@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUIStore } from '@/stores/ui-store';
 import { useSessionStore } from '@/stores/session-store';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 // ─── Command definitions ──────────────────────────────────────────────────────
 interface Command {
   id: string;
@@ -13,6 +15,15 @@ interface Command {
   shortcut?: string;
   category: 'session' | 'navigation' | 'settings' | 'agent' | 'action';
   action: () => void;
+}
+
+interface SearchResult {
+  id: string;
+  session_id: string;
+  content: string;
+  snippet: string;
+  agent_name?: string;
+  created_at: string;
 }
 
 // ─── CommandPalette component ─────────────────────────────────────────────────
@@ -233,19 +244,43 @@ export default function CommandPalette() {
     );
   });
 
+  // ── FTS5 message search (debounced) ──────────────────────────────────────
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    const q = query.trim();
+    if (q.length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    searchTimerRef.current = setTimeout(() => {
+      fetch(`${API_BASE}/search/messages?q=${encodeURIComponent(q)}&limit=8`)
+        .then(r => r.ok ? r.json() : { data: [] })
+        .then(({ data }: { data: SearchResult[] }) => setSearchResults(data ?? []))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [query]);
+
+  // Combined items: commands + search results
+  const totalItems = filtered.length + searchResults.length;
+
   // Reset on open
   useEffect(() => {
     if (commandPaletteOpen) {
       setQuery('');
       setSelectedIndex(0);
+      setSearchResults([]);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [commandPaletteOpen]);
 
   // Clamp selected index when filter changes
   useEffect(() => {
-    setSelectedIndex((i) => Math.min(i, Math.max(0, filtered.length - 1)));
-  }, [filtered.length]);
+    setSelectedIndex((i) => Math.min(i, Math.max(0, totalItems - 1)));
+  }, [totalItems]);
 
   // Global ⌘K listener
   useEffect(() => {
@@ -270,22 +305,31 @@ export default function CommandPalette() {
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((i) => (i + 1) % Math.max(1, filtered.length));
+        setSelectedIndex((i) => (i + 1) % Math.max(1, totalItems));
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((i) => (i - 1 + filtered.length) % Math.max(1, filtered.length));
+        setSelectedIndex((i) => (i - 1 + totalItems) % Math.max(1, totalItems));
         return;
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        const cmd = filtered[selectedIndex];
-        if (cmd) cmd.action();
+        if (selectedIndex < filtered.length) {
+          const cmd = filtered[selectedIndex];
+          if (cmd) cmd.action();
+        } else {
+          // Navigate to search result's session
+          const sr = searchResults[selectedIndex - filtered.length];
+          if (sr) {
+            useSessionStore.getState().setActiveSession(sr.session_id);
+            setCommandPaletteOpen(false);
+          }
+        }
         return;
       }
     },
-    [filtered, selectedIndex, setCommandPaletteOpen],
+    [filtered, searchResults, selectedIndex, totalItems, setCommandPaletteOpen],
   );
 
   if (!commandPaletteOpen) return null;
@@ -353,7 +397,7 @@ export default function CommandPalette() {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Type a command..."
+            placeholder="Search messages or type a command..."
             style={{
               flex: 1,
               padding: '4px 0',
@@ -382,8 +426,8 @@ export default function CommandPalette() {
         </div>
 
         {/* ── Results ── */}
-        <div style={{ maxHeight: 360, overflowY: 'auto', padding: '4px 0' }}>
-          {filtered.length === 0 ? (
+        <div style={{ maxHeight: 400, overflowY: 'auto', padding: '4px 0' }}>
+          {totalItems === 0 && !searching ? (
             <div
               style={{
                 padding: '20px 16px',
@@ -392,75 +436,113 @@ export default function CommandPalette() {
                 fontSize: 13,
               }}
             >
-              No commands found
+              {query.trim() ? 'No results found' : 'No commands found'}
             </div>
           ) : (
-            filtered.map((cmd, i) => {
-              const active = i === selectedIndex;
-              return (
-                <div
-                  key={cmd.id}
-                  onClick={() => cmd.action()}
-                  onMouseEnter={() => setSelectedIndex(i)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 16px',
-                    cursor: 'pointer',
-                    background: active ? 'var(--surface-hover)' : 'transparent',
-                    transition: 'background 80ms',
-                  }}
-                >
-                  <span
-                    style={{ fontSize: 16, width: 24, textAlign: 'center', flexShrink: 0 }}
+            <>
+              {/* Commands section */}
+              {filtered.length > 0 && query.trim() && (
+                <div style={{ padding: '4px 16px 2px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Commands
+                </div>
+              )}
+              {filtered.map((cmd, i) => {
+                const active = i === selectedIndex;
+                return (
+                  <div
+                    key={cmd.id}
+                    onClick={() => cmd.action()}
+                    onMouseEnter={() => setSelectedIndex(i)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      background: active ? 'var(--surface-hover)' : 'transparent',
+                      transition: 'background 80ms',
+                    }}
                   >
-                    {cmd.icon}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        color: active ? 'var(--text)' : 'var(--text-secondary)',
-                        fontWeight: active ? 500 : 400,
-                      }}
-                    >
-                      {cmd.label}
-                    </div>
-                    {cmd.description && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--text-muted)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {cmd.description}
+                    <span style={{ fontSize: 16, width: 24, textAlign: 'center', flexShrink: 0 }}>
+                      {cmd.icon}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, color: active ? 'var(--text)' : 'var(--text-secondary)', fontWeight: active ? 500 : 400 }}>
+                        {cmd.label}
                       </div>
+                      {cmd.description && (
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {cmd.description}
+                        </div>
+                      )}
+                    </div>
+                    {cmd.shortcut && (
+                      <kbd style={{
+                        padding: '2px 6px', borderRadius: 4, background: 'var(--bg)',
+                        border: '1px solid var(--border)', fontSize: 11,
+                        color: active ? 'var(--text-secondary)' : 'var(--text-muted)',
+                        fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 'auto',
+                      }}>
+                        {cmd.shortcut}
+                      </kbd>
                     )}
                   </div>
-                  {cmd.shortcut && (
-                    <kbd
-                      style={{
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        background: active ? 'var(--bg)' : 'var(--bg)',
-                        border: '1px solid var(--border)',
-                        fontSize: 11,
-                        color: active ? 'var(--text-secondary)' : 'var(--text-muted)',
-                        fontFamily: 'var(--font-mono)',
-                        flexShrink: 0,
-                        marginLeft: 'auto',
-                      }}
-                    >
-                      {cmd.shortcut}
-                    </kbd>
-                  )}
+                );
+              })}
+
+              {/* Search results section */}
+              {searchResults.length > 0 && (
+                <div style={{ padding: '8px 16px 2px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderTop: filtered.length > 0 ? '1px solid var(--border)' : 'none', marginTop: filtered.length > 0 ? 4 : 0 }}>
+                  💬 Messages
                 </div>
-              );
-            })
+              )}
+              {searchResults.map((sr, i) => {
+                const globalIdx = filtered.length + i;
+                const active = globalIdx === selectedIndex;
+                return (
+                  <div
+                    key={sr.id}
+                    onClick={() => {
+                      useSessionStore.getState().setActiveSession(sr.session_id);
+                      setCommandPaletteOpen(false);
+                    }}
+                    onMouseEnter={() => setSelectedIndex(globalIdx)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      background: active ? 'var(--surface-hover)' : 'transparent',
+                      transition: 'background 80ms',
+                    }}
+                  >
+                    <span style={{ fontSize: 14, width: 24, textAlign: 'center', flexShrink: 0, color: 'var(--coral)' }}>
+                      {sr.agent_name ? '🤖' : '👤'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 13, color: active ? 'var(--text)' : 'var(--text-secondary)',
+                        fontWeight: active ? 500 : 400,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                        dangerouslySetInnerHTML={{ __html: sr.snippet || sr.content.slice(0, 80) }}
+                      />
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                        {sr.agent_name || 'You'} · {new Date(sr.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Loading indicator */}
+              {searching && (
+                <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  Searching messages…
+                </div>
+              )}
+            </>
           )}
         </div>
 

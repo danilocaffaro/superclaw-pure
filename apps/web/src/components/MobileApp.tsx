@@ -238,7 +238,7 @@ function ConversationsList() {
           <button
             aria-label="Settings"
             onClick={() => setSettingsOpen(true)}
-            style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: 4, color: 'var(--text-secondary)' }}
+            style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: 0, color: 'var(--text-secondary)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}
           >
             ⚙️
           </button>
@@ -247,8 +247,8 @@ function ConversationsList() {
             onClick={handleNewChat}
             style={{
               background: 'var(--coral)', border: 'none', borderRadius: '50%',
-              width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 700,
+              width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#fff', fontSize: 22, fontWeight: 700,
             }}
           >
             +

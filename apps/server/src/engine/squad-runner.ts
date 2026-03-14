@@ -531,8 +531,8 @@ async function* runDebate(
     if (turnMgr.isComplete) break;
 
     yield {
-      event: 'message.start',
-      data: { sessionId, agentId: agent.id, agentName: agent.name, phase: 'initial' },
+      event: 'agent.start',
+      data: { sessionId, agentId: agent.id, agentName: agent.name, agentEmoji: agent.emoji, phase: 'initial' },
     };
 
     // Try worker-based execution for collecting position
@@ -810,11 +810,12 @@ async function* runSequential(
         (isLast ? 'Provide the final synthesized answer.' : 'Add your perspective.');
 
     yield {
-      event: 'message.start',
+      event: 'agent.start',
       data: {
         sessionId,
         agentId: agent.id,
         agentName: agent.name,
+        agentEmoji: agent.emoji,
         step: turnInPass,
         total: totalActive,
         isExtraTurn,

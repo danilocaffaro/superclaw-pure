@@ -202,8 +202,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         (s) => s.squad_id === squadId && s.mode === 'squad'
       );
       if (existing) {
-        set({ activeSessionId: existing.id, activeSquadId: squadId });
+        set({ activeSessionId: existing.id, activeSquadId: squadId, messages: [] });
         try { localStorage.setItem('superclaw-active-session', existing.id); } catch { /* noop */ }
+        get().fetchMessages(existing.id);
         return;
       }
 

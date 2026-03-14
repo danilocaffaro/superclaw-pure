@@ -22,6 +22,7 @@ export interface SSEEvent {
     | 'message.start'
     | 'message.delta'
     | 'message.finish'
+    | 'agent.start'
     | 'tool.start'
     | 'tool.finish'
     | 'squad.skip'
@@ -202,8 +203,13 @@ export async function* runAgent(
   const historyMessages = historyToLLMMessages(freshMessages);
 
   // Working messages list — mutable during the agentic loop
-  // freshMessages already includes the user message saved in step 2
+  // freshMessages already includes the user message saved in step 2 (unless skipped for squad)
   const messages: LLMMessage[] = [...historyMessages];
+
+  // If user message was not persisted (squad context injection), still add it to LLM context
+  if (opts?.skipPersistUserMessage && userMessage) {
+    messages.push({ role: 'user', content: userMessage });
+  }
 
   // ── 5. Signal start ──────────────────────────────────────────────────────────
   yield { event: 'message.start', data: { sessionId, agentId: agentConfig.id } };

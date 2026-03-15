@@ -16,9 +16,9 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import type Database from 'better-sqlite3';
 import crypto from 'node:crypto';
-import { ExternalAgentRepository, type ExternalAgentCreateInput, type ExternalAgentTier, type ExternalAgentStatus } from '../db/external-agents.js';
+import { type ExternalAgentCreateInput, type ExternalAgentTier, type ExternalAgentStatus } from '../db/external-agents.js';
+import { getEngineService } from '../engine/engine-service.js';
 import { generateProtocolPack } from '../engine/external-agent-bridge.js';
 import { broadcastSSE } from './sse.js';
 import { logger } from '../lib/logger.js';
@@ -48,8 +48,9 @@ export function registerPendingCallback(requestId: string, timeoutMs = 30000): P
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
 
-export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.Database): void {
-  const repo = new ExternalAgentRepository(db);
+export function registerExternalAgentRoutes(app: FastifyInstance): void {
+  const engine = getEngineService();
+  const repo = engine.db.externalAgents();
 
   // ── List all external agents ──────────────────────────────────────────────
 
@@ -252,7 +253,7 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
       if (newOutbound) { updates.push('outbound_token = ?'); values.push(newOutbound); }
       values.push(req.params.id);
 
-      db.prepare(`UPDATE external_agents SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+      engine.db.getDb().prepare(`UPDATE external_agents SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
       logger.info('[ExternalAgent] Tokens rotated for %s (type=%s)', agent.name, tokenType);
       return {
@@ -271,7 +272,7 @@ export function registerExternalAgentRoutes(app: FastifyInstance, db: Database.D
     const agent = repo.getById(req.params.id);
     if (!agent) return reply.status(404).send({ error: 'External agent not found' });
 
-    db.prepare('UPDATE external_agents SET inbound_token = ?, outbound_token = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    engine.db.getDb().prepare('UPDATE external_agents SET inbound_token = ?, outbound_token = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run('revoked', 'revoked', 'inactive', req.params.id);
 
     logger.info('[ExternalAgent] Tokens revoked for %s — agent deactivated', agent.name);

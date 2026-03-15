@@ -1,8 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import type { ProviderRepository, ProviderConfig } from '../db/providers.js';
-import { AgentRepository } from '../db/agents.js';
-import { ProviderRepository as ProvRepo } from '../db/providers.js';
-import { initDatabase } from '../db/index.js';
+import type { ProviderConfig } from '../db/providers.js';
+import type { ProviderRepository } from '../db/providers.js';
+import { getEngineService } from '../engine/engine-service.js';
 // Setup API routes
 import { streamChat } from '../engine/chat-engine.js';
 import { resolveProviderBaseUrl, resolveProviderType, PROVIDER_BASE_URLS } from '../config/defaults.js';
@@ -12,11 +11,11 @@ import { resolveProviderBaseUrl, resolveProviderType, PROVIDER_BASE_URLS } from 
 // ============================================================
 
 function getDb() {
-  return initDatabase();
+  return getEngineService().db.getDb();
 }
 
 /** Check if setup is needed: no providers with API keys + few agents */
-function computeNeedsSetup(_providers: ProviderConfig[], _agentCount: number, db: ReturnType<typeof initDatabase>): boolean {
+function computeNeedsSetup(_providers: ProviderConfig[], _agentCount: number, db: import('better-sqlite3').Database): boolean {
   // Setup is needed until the user explicitly completes the wizard
   // The wizard marks setup_complete=true at the end
   const row = db.prepare(`SELECT value FROM settings WHERE key = 'setup_complete'`).get() as { value: string } | undefined;
@@ -401,7 +400,7 @@ export function registerSetupRoutes(
   providerRepo: ProviderRepository,
 ): void {
   const db = getDb();
-  const agentRepo = new AgentRepository(db);
+  const agentRepo = getEngineService().db.agents(db);
 
   // ── GET /setup/status ──────────────────────────────────────────────────────
   app.get('/setup/status', async () => {
@@ -534,8 +533,8 @@ export function registerSetupRoutes(
       const connected = providerRepo.list().filter(p => p.status === 'connected');
       return connected[0]?.id ?? 'anthropic';
     })();
-    const db2 = initDatabase();
-    const provRepo = new ProvRepo(db2);
+    const db2 = getDb();
+    const provRepo = getEngineService().db.providers(db2);
     const provConfig = provRepo.getUnmasked(providerId);
     if (!provConfig) {
       return reply.status(400).send({

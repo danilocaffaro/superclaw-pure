@@ -421,7 +421,7 @@ async function main() {
   registerAnalyticsRoutes(app, db);
   registerEmbeddingRoutes(app);
   registerChannelRoutes(app, db);
-  registerExternalAgentRoutes(app, db);
+  registerExternalAgentRoutes(app);
   registerSearchRoutes(app, db);
   registerOGPreviewRoutes(app);
   registerMessageRoutes(app, db);

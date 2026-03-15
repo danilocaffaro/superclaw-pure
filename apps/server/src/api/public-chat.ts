@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { SharedLinkRepository } from '../db/shared-links.js';
+import { getEngineService } from '../engine/engine-service.js';
+import type { AgentRepository } from '../db/agents.js';
+import type { ProviderRepository } from '../db/providers.js';
 import { logger } from '../lib/logger.js';
-import { initDatabase, AgentRepository } from '../db/index.js';
-import { ProviderRepository } from '../db/providers.js';
 import { streamChat, type ChatMessage, type ChatOptions } from '../engine/chat-engine.js';
 import {
   resolveProviderBaseUrl,
@@ -166,7 +166,8 @@ async function* runSession(
 // ─── Route registration ────────────────────────────────────────────────────────
 
 export function registerPublicChatRoutes(app: FastifyInstance): void {
-  const repo = new SharedLinkRepository();
+  const engine = getEngineService();
+  const repo = engine.db.sharedLinks();
 
   // ── Admin: CRUD for shared links ────────────────────────────────────────
 
@@ -214,8 +215,8 @@ export function registerPublicChatRoutes(app: FastifyInstance): void {
         .status(404)
         .send({ error: { code: 'NOT_FOUND', message: 'Link not found or expired' } });
 
-    const db = initDatabase();
-    const agents = new AgentRepository(db);
+    const db = engine.db.getDb();
+    const agents = engine.db.agents();
     const agent = agents.getById(link.agent_id);
     const agentName = agent?.name ?? link.agent_id;
     const agentEmoji = agent?.emoji ?? '🤖';
@@ -248,9 +249,9 @@ export function registerPublicChatRoutes(app: FastifyInstance): void {
           .status(400)
           .send({ error: { code: 'VALIDATION', message: 'content required' } });
 
-      const db = initDatabase();
-      const agents = new AgentRepository(db);
-      const providers = new ProviderRepository(db);
+      const db = engine.db.getDb();
+      const agents = engine.db.agents();
+      const providers = engine.db.providers();
       const resolved = resolveAgent(link.agent_id, agents, providers);
 
       if (!resolved) {

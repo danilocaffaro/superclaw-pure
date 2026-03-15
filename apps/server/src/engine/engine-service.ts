@@ -39,6 +39,12 @@ import { handoffSession } from './session-handoff.js';
 import type { HandoffRequest, HandoffResult } from './session-handoff.js';
 import { WorkflowEngine } from './workflow-engine.js';
 import { getMessageBus, type MessageBus } from './message-bus.js';
+import { getDb } from '../db/schema.js';
+import { ExternalAgentRepository } from '../db/external-agents.js';
+import { SharedLinkRepository } from '../db/shared-links.js';
+import { AgentRepository } from '../db/agents.js';
+import { ProviderRepository } from '../db/providers.js';
+import type Database from 'better-sqlite3';
 
 // ─── Re-exports — API routes import types from here only ──────────────────────
 export type {
@@ -108,6 +114,15 @@ export interface IWorkflowService {
   getBus(): MessageBus;
 }
 
+/** DB access — repositories + raw getDb() for complex queries. */
+export interface IDbService {
+  getDb(): Database.Database;
+  externalAgents(db?: Database.Database): ExternalAgentRepository;
+  sharedLinks(): SharedLinkRepository;
+  agents(db?: Database.Database): AgentRepository;
+  providers(db?: Database.Database): ProviderRepository;
+}
+
 // ─── Top-level facade interface ───────────────────────────────────────────────
 
 export interface IEngineService {
@@ -119,6 +134,7 @@ export interface IEngineService {
   channels: IChannelService;
   sessions: ISessionService;
   workflows: IWorkflowService;
+  db: IDbService;
 }
 
 // ─── Implementation ───────────────────────────────────────────────────────────
@@ -179,6 +195,14 @@ class EngineServiceImpl implements IEngineService {
       return this._workflowEngine;
     },
     getBus: () => getMessageBus(),
+  };
+
+  readonly db: IDbService = {
+    getDb: () => getDb(),
+    externalAgents: (db?) => new ExternalAgentRepository(db ?? getDb()),
+    sharedLinks: () => new SharedLinkRepository(),
+    agents: (db?) => new AgentRepository(db ?? getDb()),
+    providers: (db?) => new ProviderRepository(db ?? getDb()),
   };
 }
 

@@ -17,12 +17,12 @@ import {
   getEmbeddingDimensions,
   type EmbeddingConfig,
 } from '../engine/embeddings.js';
-import { getDb } from '../db/index.js';
+import { getEngineService } from '../engine/engine-service.js';
 import { logger } from '../lib/logger.js';
 
 let vecLoaded = false;
 
-function ensureVec(db: ReturnType<typeof getDb>, dimensions: number): void {
+function ensureVec(db: import('better-sqlite3').Database, dimensions: number): void {
   if (!vecLoaded) {
     try {
       loadVecExtension(db);
@@ -36,7 +36,7 @@ function ensureVec(db: ReturnType<typeof getDb>, dimensions: number): void {
 }
 
 export function registerEmbeddingRoutes(app: FastifyInstance): void {
-  const db = getDb();
+  const db = getEngineService().db.getDb();
 
   // POST /embeddings/search — hybrid or vector-only search
   app.post<{
